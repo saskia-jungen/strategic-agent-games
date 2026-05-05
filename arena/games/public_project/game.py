@@ -38,6 +38,7 @@ class PublicProjectGame(Game):
         cost_sharing: str = "equal",
         turn_order: TurnOrder = TurnOrder.ROUND_ROBIN,
         max_rounds: int = 10,
+        negotiation_rounds: int = 2,
     ) -> None:
         if valuation_mode not in ("random", "fixed"):
             raise ValueError(f"valuation_mode must be 'random' or 'fixed', got {valuation_mode!r}")
@@ -45,6 +46,8 @@ class PublicProjectGame(Game):
             raise ValueError("valuations dict required when valuation_mode='fixed'")
         if cost_sharing != "equal":
             raise ValueError("public-project currently supports only cost_sharing='equal'")
+        if negotiation_rounds < 0:
+            raise ValueError("negotiation_rounds must be >= 0")
 
         self._project_cost = project_cost
         self._valuation_range = valuation_range
@@ -53,6 +56,7 @@ class PublicProjectGame(Game):
         self._cost_sharing = cost_sharing
         self._turn_order = turn_order
         self._max_rounds = max_rounds
+        self._negotiation_rounds = negotiation_rounds
 
     @classmethod
     def from_params(cls, game_params: dict, agent_ids: list[str]) -> "PublicProjectGame":
@@ -62,6 +66,7 @@ class PublicProjectGame(Game):
             valuation_range = tuple(valuation_range)
         valuations = game_params.get("valuations")
         cost_sharing = game_params.get("cost_sharing", "equal")
+        negotiation_rounds = game_params.get("negotiation_rounds", 2)
         valuation_mode = "fixed" if valuations else "random"
         return cls(
             project_cost=project_cost,
@@ -69,6 +74,7 @@ class PublicProjectGame(Game):
             valuation_mode=valuation_mode,
             valuations=valuations,
             cost_sharing=cost_sharing,
+            negotiation_rounds=negotiation_rounds,
         )
 
     def get_metadata(self) -> dict:
@@ -81,6 +87,7 @@ class PublicProjectGame(Game):
             "cost_sharing": self._cost_sharing,
             "turn_order": self._turn_order.value,
             "max_rounds": self._max_rounds,
+            "negotiation_rounds": self._negotiation_rounds,
         }
 
     def spec(self) -> GameSpec:
@@ -90,6 +97,7 @@ class PublicProjectGame(Game):
             min_agents=2,
             description=(
                 "Each agent has a private valuation for a public project. "
+                f"Agents may negotiate for {self._negotiation_rounds} round(s) before reporting values. "
                 "Agents report valuations (reports need not be truthful). "
                 f"If sum of reports >= {self._project_cost}, the project is built "
                 "and cost is shared equally. "
@@ -97,9 +105,15 @@ class PublicProjectGame(Game):
             ),
             phases=[
                 Phase(
+                    name="negotiation",
+                    turn_order=self._turn_order,
+                    allowed_action_types=["message_only"],
+                    max_rounds=self._negotiation_rounds,
+                ),
+                Phase(
                     name="report",
                     turn_order=self._turn_order,
-                    allowed_action_types=["report_value", "pass", "message"],
+                    allowed_action_types=["report_value", "pass"],
                     max_rounds=self._max_rounds,
                 ),
             ],
@@ -115,9 +129,9 @@ class PublicProjectGame(Game):
                     payload_schema={},
                 ),
                 ActionTypeDef(
-                    name="message",
-                    description="Send messages without advancing the turn",
-                    payload_schema={"text": {"type": "string"}},
+                    name="message_only",
+                    description="Send messages during negotiation",
+                    payload_schema={},
                 ),
             ],
             outcome_rule=OutcomeRule.ENGINE,
@@ -128,6 +142,7 @@ class PublicProjectGame(Game):
                 "built": None,
                 "action_history": [],
                 "resolved": False,
+                "negotiation_complete": False,
             },
         )
 
@@ -141,6 +156,26 @@ class PublicProjectGame(Game):
         if not phases or match.current_phase_index >= len(phases):
             return "report"
         return phases[match.current_phase_index].name
+
+    def _advance_phase(self, match: Match, target_phase: str) -> None:
+        for i, ph in enumerate(match.spec.phases):
+            if ph.name == target_phase:
+                match.current_phase_index = i
+                match.current_round = 0
+                match.current_turn_index = 0
+                break
+
+    def _advance_negotiation_turn(self, match: Match) -> None:
+        n = len(match.agent_ids)
+        if n <= 1:
+            return
+        match.current_turn_index = (match.current_turn_index + 1) % n
+        if match.current_turn_index == 0:
+            match.current_round += 1
+        phase = match.spec.phases[match.current_phase_index]
+        if phase.max_rounds is not None and match.current_round >= phase.max_rounds:
+            match.game_state["negotiation_complete"] = True
+            self._advance_phase(match, "report")
 
     def _ensure_valuations(self, match: Match) -> None:
         """Ensure that valuations are initialized in the game state."""
@@ -268,11 +303,12 @@ class PublicProjectGame(Game):
         messages = messages_visible_to(match.messages, agent_id)
         allowed_actions = build_allowed_actions(match.spec, phase_name, is_my_turn)
 
-        # Filter actions: if agent has already reported, only allow pass/message
-        reports = match.game_state.get("reports", {})
-        passes = match.game_state.get("passes", {})
-        if agent_id in reports or agent_id in passes:
-            allowed_actions = [a for a in allowed_actions if a.action_type == "message"]
+        # Filter actions: if agent has already reported or passed, no further actions in report phase
+        if phase_name == "report":
+            reports = match.game_state.get("reports", {})
+            passes = match.game_state.get("passes", {})
+            if agent_id in reports or agent_id in passes:
+                allowed_actions = []
 
         return TurnState(
             match_id=match.match_id,
@@ -317,27 +353,33 @@ class PublicProjectGame(Game):
         current_turn_agent_id = match.agent_ids[match.current_turn_index]
         at = action.action_type
 
-        if at == "message_only":
-            at = "message"
+        if at == "message":
+            at = "message_only"
 
-        if at != "message" and agent_id != current_turn_agent_id:
+        if at != "message_only" and agent_id != current_turn_agent_id:
             return action_error(ActionError.NOT_YOUR_TURN, f"It is {current_turn_agent_id}'s turn")
+
+        if phase_name == "negotiation":
+            if at != "message_only":
+                return action_error(
+                    ActionError.GAME_RULE_VIOLATION,
+                    f"Only message_only is allowed in negotiation phase, got {at}",
+                )
+            match.game_state.setdefault("action_history", []).append(
+                {"agent_id": agent_id, "action": "message_only", "phase": phase_name}
+            )
+            self._advance_negotiation_turn(match)
+            return action_ok()
 
         if at == "report_value":
             return self._do_report(match, agent_id, phase_name, action)
-        elif at == "pass":
+        if at == "pass":
             return self._do_pass(match, agent_id, phase_name)
-        elif at == "message":
-            payload = action.payload or {}
-            text = payload.get("text")
-            if not isinstance(text, str) or not text.strip():
-                return action_error(ActionError.INVALID_PAYLOAD, "message.text is required")
-            match.game_state.setdefault("action_history", []).append(
-                {"agent_id": agent_id, "action": "message", "text": text, "phase": phase_name}
+        if at == "message_only":
+            return action_error(
+                ActionError.GAME_RULE_VIOLATION, "message_only is not allowed in report phase"
             )
-            return action_ok()
-        else:
-            return action_error(ActionError.INVALID_ACTION_TYPE, f"Unknown action type: {at}")
+        return action_error(ActionError.INVALID_ACTION_TYPE, f"Unknown action type: {at}")
 
     def _do_report(
         self, match: Match, agent_id: str, phase: str, action: Action

@@ -40,17 +40,19 @@ This doc summarizes the rules and actions for the dictator and public-project ga
 - If total reported >= C, the project is built and cost is shared equally.
 - Payoffs use true valuations.
 
-**Phase**
-- report (round-robin turn order)
+**Phases**
+1. negotiation (round-robin turn order; agents can chat before reporting)
+2. report (round-robin turn order)
 
 **Actions**
-- report_value: submit a non-negative report once.
+- message_only: send messages during negotiation (advances the turn).
+- pass: skip your turn in report; counts as your final response.
+- report_value: submit a non-negative report once (report phase only).
   - payload: {"report": number}
-- pass: skip reporting (counts as a final response).
-- message: send a public message without advancing turns.
 
 **Resolution and payoffs**
-- The game ends once every agent has either reported or passed, or max rounds are exceeded.
+- The game moves from negotiation to report after the negotiation round limit.
+- The game ends once every agent has either reported or passed in report, or max rounds are exceeded.
 - If built: utility = true_valuation - (project_cost / n).
 - If not built: utility = 0.
 
@@ -59,6 +61,7 @@ This doc summarizes the rules and actions for the dictator and public-project ga
 - valuation_range: (0, 100)
 - valuation_mode: random (or fixed when valuations provided)
 - valuations: optional fixed values per agent
+- negotiation_rounds: 2
 - max_rounds: 10
 - cost_sharing: equal
 

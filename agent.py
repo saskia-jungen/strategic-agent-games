@@ -191,7 +191,7 @@ Choose your action now. Output ONLY valid JSON."""
             payload = action.get("payload", {})
             allocator_share = payload.get("allocator_share")
             recipient_share = payload.get("recipient_share")
-            pie_total = game_state.get("pie", 10)
+            pie_total = game_state.get("pie", 100)
             if allocator_share is None or recipient_share is None:
                 raise ValueError(f"Invalid allocate_split payload: {payload}")
             if not isinstance(allocator_share, (int, float)) or not isinstance(recipient_share, (int, float)):
@@ -218,7 +218,7 @@ def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
 
     # Dictator game: allocate split
     if "allocate_split" in allowed_types:
-        pie_total = game_state.get("pie", 10)
+        pie_total = game_state.get("pie", 100)
         allocator_share = round(pie_total * 0.55)
         recipient_share = pie_total - allocator_share
         return JSONResponse({
