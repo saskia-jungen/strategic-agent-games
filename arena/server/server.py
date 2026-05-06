@@ -31,6 +31,7 @@ _DEFAULT_GAME_PARAMS: dict[str, dict[str, Any]] = {
     "first-price-auction": {"rv1": 30, "rv2": 30},
     "bilateral-trade": {"buyer_rv": 80, "seller_rv": 40},
     "provision-point": {"threshold": 100, "rv1": 70, "rv2": 70},
+    "public-project": {"project_cost": 100, "valuation_range": [0, 100]},
 }
 
 def build_arena_app(

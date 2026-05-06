@@ -65,3 +65,5 @@ site/
 
 .vercel
 .env*.local
+
+/games_yaml

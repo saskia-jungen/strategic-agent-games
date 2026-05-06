@@ -14,10 +14,15 @@ def ensure_builtins_registered() -> None:
     from arena.games.principal_agent import PrincipalAgentGame
     from arena.games.bilateral_trade import BilateralTradeGame
     from arena.games.provision_point import ProvisionPointGame
+    from arena.games.dictator import DictatorGame
+    from arena.games.public_project import PublicProjectGame
 
     register_game(UltimatumGame())
     register_game(FirstPriceAuctionGame())
     register_game(PrincipalAgentGame())
     register_game(BilateralTradeGame())
     register_game(ProvisionPointGame())
+    register_game(DictatorGame())
+    register_game(PublicProjectGame())
+
     _registered = True
