@@ -22,6 +22,7 @@ from arena.games.bilateral_trade import BilateralTradeGame
 from arena.games.provision_point import ProvisionPointGame
 from arena.games.dictator import DictatorGame
 from arena.games.public_project import PublicProjectGame
+from arena.games.trust import TrustGame
 
 __all__ = [
     # Types
@@ -48,5 +49,6 @@ __all__ = [
     "BilateralTradeGame",
     "ProvisionPointGame",
     "DictatorGame",
-    "PublicProjectGame"
+    "PublicProjectGame",
+    "TrustGame"
 ]

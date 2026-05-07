@@ -16,6 +16,7 @@ def ensure_builtins_registered() -> None:
     from arena.games.provision_point import ProvisionPointGame
     from arena.games.dictator import DictatorGame
     from arena.games.public_project import PublicProjectGame
+    from arena.games.trust import TrustGame
 
     register_game(UltimatumGame())
     register_game(FirstPriceAuctionGame())
@@ -24,5 +25,6 @@ def ensure_builtins_registered() -> None:
     register_game(ProvisionPointGame())
     register_game(DictatorGame())
     register_game(PublicProjectGame())
+    register_game(TrustGame())
 
     _registered = True

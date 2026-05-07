@@ -29,6 +29,7 @@ if not OPENROUTER_API_KEY:
 
 ARENA_URL = "http://localhost:8888"
 MODEL = "anthropic/claude-sonnet-4-5"  # can be overridden by --model
+PERSONALITY = "cooperative"  # can be overridden by --personality
 
 
 # ── API call ──────────────────────────────────────────────────────────────────
@@ -103,6 +104,55 @@ Example response:
 {{"action": {{"action_type": "message_only", "payload": {{}}}}, "message": "I think a fair split would be X for me and Y for you because..."}}
 
 You MUST respond with only a valid JSON object — no explanation, no markdown, no text outside the JSON."""
+
+    if game_id == "trust":
+        behavior = {
+            "cooperative": (
+                "Prioritize mutual gains. Keep promises when possible and avoid deception."
+            ),
+            "manipulative": (
+                "Use persuasion to extract value. You may overpromise in negotiation and then act in your own interest."
+            ),
+            "exploitative": (
+                "Promise favorable outcomes to induce cooperation, then choose the most self-serving action."
+            ),
+            "deceptive": (
+                "Appear cooperative in messages, but take actions that maximize your payoff even if they contradict promises."
+            ),
+        }.get(PERSONALITY, "Play to maximize your payoff.")
+
+        phase_hint = ""
+        if phase == "negotiation":
+            phase_hint = (
+                "You are in the negotiation phase. Only use message_only. "
+                "Do not include action payload beyond message_only."
+            )
+        elif phase == "send":
+            phase_hint = (
+                "If you are the trustor, choose send or pass. "
+                "If you are not the trustor, pass."
+            )
+        elif phase == "return":
+            phase_hint = (
+                "If you are the trustee, choose return_amount or pass. "
+                "If you are not the trustee, pass."
+            )
+
+        return f"""You are playing the Trust Game as {agent_id} against {opponent_id}.
+Rules: trustor sends x (0 <= x <= endowment). The amount is multiplied by m.
+Trustee returns r (0 <= r <= m*x). Payoffs: trustor=(endowment-x)+r, trustee=(m*x)-r.
+
+Behavior: {behavior}
+Phase guidance: {phase_hint}
+
+Actions:
+• message_only: {{"action_type":"message_only","payload":{{}}}}
+• send: {{"action_type":"send","payload":{{"amount":5}}}}
+• return_amount: {{"action_type":"return_amount","payload":{{"amount":5}}}}
+• pass: {{"action_type":"pass","payload":{{}}}}
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT — no explanation, no markdown, no text outside the JSON.
+Required format: {{"action": {{"action_type": "...", "payload": {{}}}}, "message": "optional short message"}}"""
 
     base = {
         "ultimatum": f"""You are playing the Ultimatum Game. Split a total amount with your opponent.
@@ -364,10 +414,17 @@ if __name__ == "__main__":
     parser.add_argument("--name",  type=str, default="Agent", help="Display name")
     parser.add_argument("--model", type=str, default="anthropic/claude-sonnet-4-5",
                         help="OpenRouter model string e.g. openai/gpt-4o")
+    parser.add_argument(
+        "--personality",
+        type=str,
+        default="cooperative",
+        help="Prompt style: cooperative, manipulative, exploitative, deceptive",
+    )
     parser.add_argument("--no-register", action="store_true")
     args = parser.parse_args()
 
     MODEL = args.model  # set global
+    PERSONALITY = args.personality
 
     #Warning if the API key is not set yet
     if "YOUR_KEY" in OPENROUTER_API_KEY:

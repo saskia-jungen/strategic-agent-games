@@ -65,6 +65,40 @@ This doc summarizes the rules and actions for the dictator and public-project ga
 - max_rounds: 10
 - cost_sharing: equal
 
+## Trust (game_id: trust)
+
+**Summary**
+- Two agents: trustor (agent_ids[0]) and trustee (agent_ids[1]).
+- Trustor sends amount x (0 <= x <= endowment). The amount is multiplied by m.
+- Trustee returns amount r (0 <= r <= m*x).
+- Payoffs: trustor = (endowment - x) + r; trustee = (m*x) - r.
+
+**Phases**
+1. negotiation (round-robin turn order; agents can chat before decisions)
+2. send (trustor only)
+3. return (trustee only)
+
+**Actions**
+- message_only: send messages during negotiation (advances the turn).
+- send: trustor sends a non-negative amount up to endowment.
+  - payload: {"amount": number}
+- return_amount: trustee returns a non-negative amount up to multiplier * sent.
+  - payload: {"amount": number}
+- pass: skip your turn during send/return.
+
+**Resolution and payoffs**
+- The game moves from negotiation to send after the negotiation round limit.
+- The game ends once the trustee returns, or when send/return round limits are exceeded.
+- If timed out: both agents receive utility 0.
+
+**Key parameters (defaults)**
+- endowment: 10
+- multiplier: 3
+- negotiation_rounds: 2
+- max_rounds_send: 3
+- max_rounds_return: 3
+- role_map: optional mapping {trustor: agent_id, trustee: agent_id}
+
 
 ## Test example
 
@@ -87,4 +121,19 @@ python agent.py --port 5002 --name "liquid" --model "liquid/lfm-2.5-1.2b-instruc
 curl -X POST http://localhost:8888/api/match \
   -H "Content-Type: application/json" \
   -d '{"game_id": "dictator", "agent_ids": ["gptoss", "liquid"]}'
+
+## Trust prompt personalities
+
+Use the built-in prompt variants to test cooperative vs manipulative behavior:
+
+```bash
+# Manipulative behavior
+python agent_with_builtin_prompts.py --port 5001 --name "gptoss1" --personality manipulative --model "openai/gpt-oss-120b:free"
+
+# Exploitative behavior
+python agent_with_builtin_prompts.py --port 5002 --name "gptoss2" --personality exploitative --model "openai/gpt-oss-120b:free"
+
+# Deceptive behavior
+python agent_with_builtin_prompts.py --port 5003 --name "gptoss3" --personality deceptive --model "openai/gpt-oss-120b:free"
+```
 ```
