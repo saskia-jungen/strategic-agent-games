@@ -4,6 +4,7 @@ import PlayPage from './pages/PlayPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import HistoryPage from './pages/HistoryPage';
 import AgentsPage from './pages/AgentsPage';
+import GamesPage from './pages/GamesPage';
 import { ToastProvider } from './components/Toast';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="agents" element={<AgentsPage />} />
+            <Route path="games" element={<GamesPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

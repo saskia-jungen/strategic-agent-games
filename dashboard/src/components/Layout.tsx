@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Swords, Trophy, History, Radio, Bot, Menu, X } from 'lucide-react';
+import { Swords, Trophy, History, Radio, Bot, BookOpen, Menu, X } from 'lucide-react';
 
 const NAV = [
   { to: '/', icon: Radio, label: 'Arena' },
   { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
   { to: '/history', icon: History, label: 'History' },
   { to: '/agents', icon: Bot, label: 'Agents' },
+  { to: '/games', icon: BookOpen, label: 'Games' },
 ];
 
 export default function Layout() {
