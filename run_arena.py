@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument(
         "--games", nargs="+",
-        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "dictator", "public-project", "trust"],
+        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "dictator", "public-project", "trust", "cournot"],
     )
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--max-turns", type=int, default=10)
@@ -53,7 +53,8 @@ def main() -> None:
         "provision-point": "arena.games.provision_point:ProvisionPointGame",
         "dictator": "arena.games.dictator:DictatorGame",
         "public-project": "arena.games.public_project:PublicProjectGame",
-        "trust": "arena.games.trust:TrustGame"
+        "trust": "arena.games.trust:TrustGame",
+        "cournot": "arena.games.cournot:CournotGame",
 
     }
     for gid in args.games:

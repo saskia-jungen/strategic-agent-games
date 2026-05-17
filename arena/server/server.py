@@ -32,6 +32,7 @@ _DEFAULT_GAME_PARAMS: dict[str, dict[str, Any]] = {
     "bilateral-trade": {"buyer_rv": 80, "seller_rv": 40},
     "provision-point": {"threshold": 100, "rv1": 70, "rv2": 70},
     "public-project": {"project_cost": 100, "valuation_range": [0, 100]},
+    "cournot": {"a": 100, "b": 1, "default_cost": 20, "max_rounds": 10},
 }
 
 def build_arena_app(
