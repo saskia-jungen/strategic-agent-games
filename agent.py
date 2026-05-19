@@ -102,6 +102,7 @@ def build_system_prompt(game_id: str, agent_id: str, opponent_id: str, rules: st
         "all-pay-auction": 'submit_bid: {"action_type":"submit_bid","payload":{"bid":45}}',
         "public-project": 'report_value: {"action_type":"report_value","payload":{"report":75}}',
         "provision-point": 'submit_commitment: {"action_type":"submit_commitment","payload":{"amount":30}}',
+        "voluntary-contribution": 'contribute: {"action_type":"contribute","payload":{"amount":5}}',
     }
     example = action_examples.get(game_id, 'pass: {"action_type":"pass","payload":{}}')
     
@@ -216,6 +217,12 @@ Choose your action now. Output ONLY valid JSON."""
 def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
     print(f"[{agent_id}] Using rule-based fallback", flush=True)
 
+    if "message_only" in allowed_types:
+        return JSONResponse({
+            "action": {"action_type": "message_only", "payload": {}},
+            "messages": [{"scope": "public", "content": "Ready to play.", "to_agent_ids": []}],
+        })
+
     # Dictator game: allocate split
     if "allocate_split" in allowed_types:
         pie_total = game_state.get("pie", 100)
@@ -263,6 +270,14 @@ def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
     if "submit_commitment" in allowed_types:
         return JSONResponse({
             "action": {"action_type": "submit_commitment", "payload": {"amount": 30}},
+            "messages": [],
+        })
+
+    if "contribute" in allowed_types:
+        endowment = game_state.get("endowment", 10)
+        amount = round(endowment * 0.4, 2)
+        return JSONResponse({
+            "action": {"action_type": "contribute", "payload": {"amount": amount}},
             "messages": [],
         })
 

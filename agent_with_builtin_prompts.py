@@ -154,6 +154,37 @@ Actions:
 YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT — no explanation, no markdown, no text outside the JSON.
 Required format: {{"action": {{"action_type": "...", "payload": {{}}}}, "message": "optional short message"}}"""
 
+    if game_id == "voluntary-contribution":
+        behavior = {
+            "cooperative": (
+                "Contribute a high amount to help the group (often near full endowment)."
+            ),
+            "free_rider": (
+                "Contribute 0 whenever possible and keep your endowment."
+            ),
+            "conditional": (
+                "Contribute around the recent average of others; if no history, contribute moderately."
+            ),
+            "strategic": (
+                "Contribute only if it improves your payoff given marginal_per_capita; otherwise keep funds."
+            ),
+        }.get(PERSONALITY, "Play to maximize your payoff.")
+
+        return f"""You are playing the Voluntary Contribution (Public Good) game as {agent_id} against {opponent_id}.
+Rules: each agent chooses contribution c (0 <= c <= endowment). Total contributions are multiplied by a social multiplier.
+Per-capita return: marginal_per_capita = social_multiplier / num_agents.
+Payoff: (endowment - c) + marginal_per_capita * total_contributions.
+
+Behavior: {behavior}
+
+Actions:
+- message_only: {{"action_type":"message_only","payload":{{}}}}
+- contribute: {{"action_type":"contribute","payload":{{"amount":5}}}}
+- pass: {{"action_type":"pass","payload":{{}}}}
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT — no explanation, no markdown, no text outside the JSON.
+Required format: {{"action": {{"action_type": "...", "payload": {{}}}}, "message": "optional short message"}}"""
+
     base = {
         "ultimatum": f"""You are playing the Ultimatum Game. Split a total amount with your opponent.
 CRITICAL: Use the EXACT agent IDs in shares — yours is "{agent_id}", opponent is "{opponent_id}".
