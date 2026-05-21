@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument(
         "--games", nargs="+",
-        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "all-pay-auction", "hold-up", "war-of-attrition", "dutch-auction"],
+        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "all-pay-auction", "hold-up", "war-of-attrition", "dutch-auction", "english-auction", "sequential-investment"],
     )
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--max-turns", type=int, default=10)
@@ -54,7 +54,9 @@ def main() -> None:
         "all-pay-auction": "arena.games.all_pay_auction:AllPayAuctionGame",
         "hold-up": "arena.games.hold_up:HoldUpGame",
         "war-of-attrition": "arena.games.war_of_attrition:WarOfAttritionGame",
-        "dutch-auction": "arena.games.dutch_auction:DutchAuctionGame"
+        "dutch-auction": "arena.games.dutch_auction:DutchAuctionGame",
+        "english-auction": "arena.games.english_auction:EnglishAuctionGame",
+        "sequential-investment": "arena.games.sequential_investment:SequentialInvestmentGame"
     }
     for gid in args.games:
         if gid in game_factories:
