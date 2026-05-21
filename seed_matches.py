@@ -212,7 +212,7 @@ AGENT_NAMES = [
     ("deepseek-r1", 60),
 ]
 
-GAMES = ["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "all-pay-auction", "hold-up", "war-of-attrition"]
+GAMES = ["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "all-pay-auction", "hold-up", "war-of-attrition", "sequential-investment"]
 MATCHES_PER_PAIR = 2
 
 
@@ -237,7 +237,8 @@ def seed(db_path: str) -> None:
             "provision-point": "arena.games.provision_point:ProvisionPointGame",
             "all-pay-auction": "arena.games.all_pay_auction:AllPayAuctionGame",
             "hold-up": "arena.games.hold_up:HoldUpGame",
-            "war-of-attrition": "arena.games.war_of_attrition:WarOfAttritionGame"
+            "war-of-attrition": "arena.games.war_of_attrition:WarOfAttritionGame",
+            "sequential-investment": "arena.games.sequential_investment:SequentialInvestmentGame"
         }
         mod_path, cls_name = game_factories[game_id].split(":")
         import importlib
