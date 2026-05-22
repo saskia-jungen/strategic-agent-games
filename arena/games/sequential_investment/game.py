@@ -120,6 +120,7 @@ class SequentialInvestmentGame(Game):
             game_id=GAME_ID,
             name="Sequential Investment (Leader then Follower)",
             min_agents=2,
+            max_agents=2,
             description=(
                 f"Leader invests first (observable by follower). "
                 f"Follower invests knowing leader's choice. "

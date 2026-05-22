@@ -83,6 +83,7 @@ class DictatorGame(Game):
             game_id=GAME_ID,
             name="Dictator",
             min_agents=2,
+            max_agents=2,
             description=(
                 f"Allocator (dictator) chooses how to split a fixed pie (value {self._pie}) "
                 "between self and recipient. Recipient has no action. "

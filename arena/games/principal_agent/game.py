@@ -76,6 +76,7 @@ class PrincipalAgentGame(Game):
             game_id=GAME_ID,
             name="Principal-Agent (Task Delegation, Outcome-Based Payment)",
             min_agents=3,
+            max_agents=3,
             description=(
                 "A PRINCIPAL delegates a task to a WORKER via an outcome-based contract. "
                 "An independent ORACLE scores the deliverable against the contract's success criteria. "

@@ -89,6 +89,7 @@ class HoldUpGame(Game):
             game_id=GAME_ID,
             name="Hold-Up (Investment then Bargaining)",
             min_agents=2,
+            max_agents=2,
             description=(
                 f"Both agents first choose investment amounts (invest phase, up to {INVEST_MAX_ROUNDS} rounds). "
                 f"Surplus = {self._surplus_base} + {self._surplus_multiplier} * sum(investments). "

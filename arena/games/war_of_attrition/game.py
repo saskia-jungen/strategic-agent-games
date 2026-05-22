@@ -82,6 +82,7 @@ class WarOfAttritionGame(Game):
             game_id=GAME_ID,
             name="War of Attrition (Signal + Commit)",
             min_agents=2,
+            max_agents=2,
             description=(
                 f"Phase 1 (signal): agents exchange messages to bluff and posture — no t submitted yet. "
                 f"Phase 2 (choose_time): each agent submits a sealed quit time t (0–{self._max_time}). "

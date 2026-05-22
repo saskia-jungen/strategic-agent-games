@@ -128,6 +128,7 @@ def build_arena_app(
                 "game_id": gid,
                 "description": spec.description,
                 "min_agents": spec.min_agents,
+                "max_agents": spec.max_agents,
             })
         return JSONResponse({"games": game_list})
 
