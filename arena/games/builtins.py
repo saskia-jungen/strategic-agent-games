@@ -14,6 +14,10 @@ def ensure_builtins_registered() -> None:
     from arena.games.principal_agent import PrincipalAgentGame
     from arena.games.bilateral_trade import BilateralTradeGame
     from arena.games.provision_point import ProvisionPointGame
+    from arena.games.dictator import DictatorGame
+    from arena.games.public_project import PublicProjectGame
+    from arena.games.trust import TrustGame
+    from arena.games.cournot import CournotGame
     from arena.games.all_pay_auction import AllPayAuctionGame
     from arena.games.hold_up import HoldUpGame
     from arena.games.war_of_attrition import WarOfAttritionGame
@@ -21,12 +25,15 @@ def ensure_builtins_registered() -> None:
     from arena.games.english_auction import EnglishAuctionGame
     from arena.games.sequential_investment import SequentialInvestmentGame
 
-
     register_game(UltimatumGame())
     register_game(FirstPriceAuctionGame())
     register_game(PrincipalAgentGame())
     register_game(BilateralTradeGame())
     register_game(ProvisionPointGame())
+    register_game(DictatorGame())
+    register_game(PublicProjectGame())
+    register_game(TrustGame())
+    register_game(CournotGame())
     register_game(AllPayAuctionGame())
     register_game(HoldUpGame())
     register_game(WarOfAttritionGame())
