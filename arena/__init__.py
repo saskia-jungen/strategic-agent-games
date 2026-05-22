@@ -20,6 +20,9 @@ from arena.games.first_price_auction import FirstPriceAuctionGame
 from arena.games.principal_agent import PrincipalAgentGame
 from arena.games.bilateral_trade import BilateralTradeGame
 from arena.games.provision_point import ProvisionPointGame
+from arena.games.dictator import DictatorGame
+from arena.games.public_project import PublicProjectGame
+from arena.games.trust import TrustGame
 
 __all__ = [
     # Types
@@ -45,4 +48,7 @@ __all__ = [
     "PrincipalAgentGame",
     "BilateralTradeGame",
     "ProvisionPointGame",
+    "DictatorGame",
+    "PublicProjectGame",
+    "TrustGame"
 ]

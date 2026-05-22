@@ -58,7 +58,7 @@ export default function LeaderboardPage() {
                   No matches played yet.
                 </CardBody>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="max-h-[220px] overflow-y-auto overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border text-xs text-text-muted uppercase tracking-wider">

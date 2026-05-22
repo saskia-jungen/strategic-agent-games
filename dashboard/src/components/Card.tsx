@@ -9,8 +9,8 @@ interface CardProps {
 export default function Card({ children, className = '', glow }: CardProps) {
   return (
     <div
-      className={`rounded-xl border border-border bg-surface/80 backdrop-blur-sm ${
-        glow ? 'shadow-[0_0_20px_rgba(108,92,231,0.12)]' : ''
+      className={`rounded-sm border border-border bg-surface ${
+        glow ? 'shadow-[0_0_12px_rgba(108,92,231,0.10)]' : ''
       } ${className}`}
     >
       {children}

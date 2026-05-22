@@ -5,6 +5,13 @@ import Badge from '../components/Badge';
 import EventRow from '../components/EventRow';
 import { Clock, ChevronDown, ChevronRight, MessageSquare, Zap, Filter, Users, RotateCcw, X, Search } from 'lucide-react';
 
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  finished: 'Match completed normally — outcome and payoffs were recorded.',
+  running: 'Match started but never reached a finished state — likely abandoned or stalled mid-game.',
+  waiting: 'Waiting for agents to join before the match can start.',
+  abandoned: 'Match was explicitly abandoned before completion.',
+};
+
 export default function HistoryPage() {
   const [matches, setMatches] = useState<MatchRecord[]>([]);
   const [games, setGames] = useState<string[]>([]);
@@ -315,7 +322,12 @@ export default function HistoryPage() {
                   <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 flex-wrap">
                     <Badge variant="accent">{m.game_id}</Badge>
                     <span className="text-sm font-medium truncate max-w-[120px] sm:max-w-none">{m.agent_ids.join(' vs ')}</span>
-                    <Badge variant={m.status === 'finished' ? 'success' : 'warning'}>{m.status}</Badge>
+                    <Badge
+                      variant={m.status === 'finished' ? 'success' : 'warning'}
+                      tooltip={STATUS_DESCRIPTIONS[m.status] ?? m.status}
+                    >
+                      {m.status}
+                    </Badge>
                   </div>
                   <div className="hidden sm:flex items-center gap-4 text-xs text-text-muted flex-shrink-0">
                     {msgCount > 0 && (
