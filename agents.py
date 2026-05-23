@@ -1,4 +1,3 @@
-
 """
 Multi-Model Agent for local Agent Arena.
 Supports any OpenRouter model.
@@ -9,6 +8,7 @@ Examples:
   python3 agent_local.py --port 5003 --name "Llama"  --model "meta-llama/llama-3.1-70b-instruct"
   python3 agent_local.py --port 5004 --name "Granite" --model "ibm-granite/granite-4.0-h-micro"
 
+Requires: pip install starlette uvicorn requests
 """
 
 import argparse, json, os, re
@@ -19,9 +19,9 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 ARENA_URL = "http://localhost:8888"
-MODEL = "anthropic/claude-sonnet-4-5" # default, can be overriden by --model
+MODEL = "anthropic/claude-sonnet-4-5"
 
 
 # ── LLM call ──────────────────────────────────────────────────────────────────
@@ -153,6 +153,32 @@ ALWAYS check current_phase in game_state. NEVER use submit_time in signal phase.
         "dutch-auction": """You are in a Dutch auction. The user message tells you exactly what JSON to output. Copy it exactly and output nothing else.""",
 
         "english-auction": """You are in an English auction. The user message tells you exactly what JSON to output. Copy it exactly and output nothing else.""",
+
+        "common-agency": f"""You are playing Common Agency as agent "{agent_id}". THREE phases:
+
+Check my_role in game_state: you are either a PRINCIPAL or the AGENT.
+
+PHASE 1 — offer_contracts (PRINCIPALS act):
+- If my_role="principal": offer a wage contract {{w_low, w_high}} to the agent.
+- w_high should incentivize high effort. IC constraint: w_high - w_low >= effort_cost/(p_high-p_low).
+- Beware: other principals may free-ride on YOUR incentive contract.
+- Action: {{"action_type":"offer_contract","payload":{{"w_low":X,"w_high":Y}}}}
+- If my_role="agent" in this phase: you cannot act, wait.
+
+PHASE 2 — accept_bundle (AGENT acts):
+- You see all contracts offered. total_w_low and total_w_high are in game_state.
+- Accept if expected payoff > 0. Reject if the bundle is not worth your effort.
+- Action: {{"action_type":"accept_bundle","payload":{{}}}} or {{"action_type":"reject_all","payload":{{}}}}
+
+PHASE 3 — choose_effort (AGENT acts):
+- Choose effort level. High effort costs effort_cost but raises P(high outcome).
+- Compare exp_payoff_high_effort vs exp_payoff_low_effort in game_state.
+- Action: {{"action_type":"choose_effort","payload":{{"effort":"high"}}}} or {{"effort":"low"}}
+
+Payoffs:
+  Agent: sum(wages for realized outcome) - effort_cost (if high)
+  Principal: benefit_outcome - own_wage_for_outcome
+Check strategy_hint in game_state for exact numbers.""",
 
         "sequential-investment": f"""You are playing Sequential Investment as agent "{agent_id}". TWO phases:
 
@@ -362,6 +388,80 @@ interaction=substitutes: your MB = {mb}, cost = {inv_cost}.
 Starting point: {suggestion}.
 YOUR JSON: {{"action":{{"action_type":"invest","payload":{{"amount":{suggestion}}}}},"message":"Investing {suggestion}"}}"""
 
+    elif game_id == "common-agency":
+        import random as _rnd_ca
+        my_role       = game_state.get("my_role", "unknown")
+        current_phase = game_state.get("current_phase", "offer_contracts")
+        contracts     = game_state.get("contracts", {})
+        benefit_high  = game_state.get("benefit_high", 10)
+        benefit_low   = game_state.get("benefit_low", 0)
+        effort_cost   = game_state.get("effort_cost", 1)
+        p_hi_hi       = game_state.get("p_high_high_effort", 0.7)
+        p_hi_lo       = game_state.get("p_high_low_effort", 0.4)
+        total_w_low   = game_state.get("total_w_low", 0)
+        total_w_high  = game_state.get("total_w_high", 0)
+        exp_hi        = game_state.get("exp_payoff_high_effort", 0)
+        exp_lo        = game_state.get("exp_payoff_low_effort", 0)
+
+        if my_role == "principal" and current_phase == "offer_contracts":
+            if agent_id in contracts:
+                extra_hint = "You have already offered your contract. Pass or message while waiting."
+            else:
+                ic_diff   = round(effort_cost / max(p_hi_hi - p_hi_lo, 0.01), 2)
+                # Check what other principals already offered
+                other_contracts = {k: v for k, v in contracts.items() if k != agent_id}
+                # Add noise so each principal reasons differently
+                _noise = round(0.7 + _rnd_ca.random() * 0.8, 2)
+                w_high_base = round(ic_diff * _noise, 2)
+
+                if other_contracts:
+                    other_w_high = sum(v.get("w_high", 0) for v in other_contracts.values())
+                    # If other principal already offered a lot, consider free-riding
+                    if other_w_high >= ic_diff:
+                        w_high_sug = round(ic_diff * 0.3 * _noise, 2)
+                        strategy = f"Other principal offered w_high={other_w_high:.2f} which may already incentivize effort. Consider FREE-RIDING with a lower offer to save cost. You earn benefit - your_wage."
+                    else:
+                        needed = round(max(0, ic_diff - other_w_high + 0.5), 2)
+                        w_high_sug = round(needed * _noise, 2)
+                        strategy = f"Other principal only offered w_high={other_w_high:.2f}. You need to contribute more to make agent choose high effort. Together you need w_high >= {ic_diff}."
+                else:
+                    w_high_sug = w_high_base
+                    strategy = f"You are first to offer. IC constraint needs total w_high >= {ic_diff} across all principals. Consider whether you want to lead or wait to see others."
+
+                w_low_sug = 0.0
+                extra_hint = f"""PRINCIPAL — offer your wage contract.
+IC constraint: total w_high across principals >= {ic_diff} to incentivize agent high effort.
+{strategy}
+Your profit if outcome=high: {benefit_high} - your_w_high = {round(benefit_high - w_high_sug, 2)}.
+Suggested offer: w_low={w_low_sug}, w_high={w_high_sug} (but reason about free-riding vs leading).
+YOUR JSON: {{"action":{{"action_type":"offer_contract","payload":{{"w_low":{w_low_sug},"w_high":{w_high_sug}}}}},"message":"Offering w_low={w_low_sug} w_high={w_high_sug} — {strategy[:60]}"}}"""
+
+        elif my_role == "agent" and current_phase == "accept_bundle":
+            # Show breakdown per principal
+            contract_breakdown = "  ".join([f"{k}: w_low={v.get('w_low',0):.1f} w_high={v.get('w_high',0):.1f}" for k,v in contracts.items()])
+            decision = "accept_bundle" if max(exp_hi, exp_lo) > 0 else "reject_all"
+            best_effort = "high" if exp_hi >= exp_lo else "low"
+            extra_hint = f"""AGENT — evaluate the full contract bundle and decide.
+Contracts offered:
+  {contract_breakdown}
+Total: w_low={total_w_low:.2f}, w_high={total_w_high:.2f}
+Expected payoff if high effort: {total_w_high:.2f}×{p_hi_hi} - {effort_cost} = {exp_hi:.2f}
+Expected payoff if low effort:  {total_w_high:.2f}×{p_hi_lo} = {exp_lo:.2f}
+{"Bundle is profitable — ACCEPT and choose " + best_effort + " effort." if max(exp_hi, exp_lo) > 0 else "Bundle not worth it — REJECT."}
+Note any asymmetry in contracts — one principal may be free-riding on the other.
+YOUR JSON: {{"action":{{"action_type":"{decision}","payload":{{}}}},"message":"{"Accepting — total w_high=" + str(round(total_w_high,2)) + ", high effort gives " + str(round(exp_hi,2)) if decision == "accept_bundle" else "Rejecting — bundle not profitable"}"}}"""
+
+        elif my_role == "agent" and current_phase == "choose_effort":
+            best = "high" if exp_hi > exp_lo else "low"
+            gain = round(exp_hi - exp_lo, 2)
+            extra_hint = f"""AGENT — choose your effort level now.
+High effort: E[wage] = {total_w_high:.2f}×{p_hi_hi} - {effort_cost} = {exp_hi:.2f}
+Low effort:  E[wage] = {total_w_high:.2f}×{p_hi_lo} = {exp_lo:.2f}
+{"High effort pays " + str(gain) + " more — choose HIGH." if exp_hi > exp_lo else "Low effort pays " + str(abs(gain)) + " more — choose LOW (principals under-incentivized)."}
+YOUR JSON: {{"action":{{"action_type":"choose_effort","payload":{{"effort":"{best}"}}}},"message":"Choosing {best} effort — {"contracts sufficiently incentivize high effort" if best == "high" else "principals did not offer enough to justify effort cost"}"}}"""
+        else:
+            extra_hint = f"You are {my_role} in phase {current_phase}. Wait for your turn or send a message."
+
     elif game_id == "war-of-attrition":
         prize         = game_state.get("prize", 10)
         cost_rate     = game_state.get("cost_rate", 1)
@@ -567,6 +667,48 @@ def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
             t = round(min((prize / cost_rate) * (0.8 + random.random() * 0.4), max_time), 2)
             return JSONResponse({
                 "action": {"action_type": "submit_time", "payload": {"t": t}},
+                "messages": [],
+            })
+        return JSONResponse({"action": {"action_type": "pass", "payload": {}}, "messages": []})
+
+    # Common Agency
+    if game_id == "common-agency":
+        import random as _rnd_ca2
+        my_role       = game_state.get("my_role", "unknown")
+        current_phase = game_state.get("current_phase", "offer_contracts")
+        contracts     = game_state.get("contracts", {})
+        effort_cost   = game_state.get("effort_cost", 1.0)
+        p_hi_hi       = game_state.get("p_high_high_effort", 0.7)
+        p_hi_lo       = game_state.get("p_high_low_effort", 0.4)
+        exp_hi        = game_state.get("exp_payoff_high_effort", 0)
+        exp_lo        = game_state.get("exp_payoff_low_effort", 0)
+        total_w_high  = game_state.get("total_w_high", 0)
+
+        if my_role == "principal" and current_phase == "offer_contracts":
+            if agent_id in contracts:
+                return JSONResponse({"action": {"action_type": "pass", "payload": {}}, "messages": []})
+            ic_diff = round(effort_cost / max(p_hi_hi - p_hi_lo, 0.01), 2)
+            other_contracts = {k: v for k, v in contracts.items() if k != agent_id}
+            _noise = 0.7 + _rnd_ca2.random() * 0.8
+            if other_contracts:
+                other_w_high = sum(v.get("w_high", 0) for v in other_contracts.values())
+                if other_w_high >= ic_diff:
+                    w_high = round(ic_diff * 0.25 * _noise, 2)  # free-ride
+                else:
+                    w_high = round(max(0, ic_diff - other_w_high + 0.3) * _noise, 2)
+            else:
+                w_high = round(ic_diff * _noise, 2)
+            return JSONResponse({
+                "action": {"action_type": "offer_contract", "payload": {"w_low": 0.0, "w_high": w_high}},
+                "messages": [],
+            })
+        if my_role == "agent" and current_phase == "accept_bundle":
+            action_t = "accept_bundle" if max(exp_hi, exp_lo) > 0 else "reject_all"
+            return JSONResponse({"action": {"action_type": action_t, "payload": {}}, "messages": []})
+        if my_role == "agent" and current_phase == "choose_effort":
+            effort = "high" if exp_hi > exp_lo else "low"
+            return JSONResponse({
+                "action": {"action_type": "choose_effort", "payload": {"effort": effort}},
                 "messages": [],
             })
         return JSONResponse({"action": {"action_type": "pass", "payload": {}}, "messages": []})
