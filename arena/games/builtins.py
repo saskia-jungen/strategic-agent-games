@@ -17,6 +17,13 @@ def ensure_builtins_registered() -> None:
     from arena.games.dictator import DictatorGame
     from arena.games.public_project import PublicProjectGame
     from arena.games.trust import TrustGame
+    from arena.games.cournot import CournotGame
+    from arena.games.all_pay_auction import AllPayAuctionGame
+    from arena.games.hold_up import HoldUpGame
+    from arena.games.war_of_attrition import WarOfAttritionGame
+    from arena.games.dutch_auction import DutchAuctionGame
+    from arena.games.english_auction import EnglishAuctionGame
+    from arena.games.sequential_investment import SequentialInvestmentGame
     from arena.games.centipede import CentipedeGame
     from arena.games.voluntary_contribution import VoluntaryContributionGame
     from arena.games.insurance_moral_hazard import InsuranceMoralHazardGame
@@ -30,6 +37,13 @@ def ensure_builtins_registered() -> None:
     register_game(DictatorGame())
     register_game(PublicProjectGame())
     register_game(TrustGame())
+    register_game(CournotGame())
+    register_game(AllPayAuctionGame())
+    register_game(HoldUpGame())
+    register_game(WarOfAttritionGame())
+    register_game(DutchAuctionGame())
+    register_game(EnglishAuctionGame())
+    register_game(SequentialInvestmentGame())
     register_game(VoluntaryContributionGame())
     register_game(InsuranceMoralHazardGame())
     register_game(CentipedeGame())

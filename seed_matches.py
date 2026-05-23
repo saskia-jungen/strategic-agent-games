@@ -80,11 +80,39 @@ PROVISION_MESSAGES = [
     "I'm going to be generous with my commitment.",
 ]
 
+ALL_PAY_MESSAGES = [
+    "All-pay means I'm risking my bid no matter what.",
+    "I need to bid carefully, losing still costs me.",
+    "Winner's curse is bad, but all-pay makes every bid costly.",
+    "I'll bid aggressively if my valuation is high enough.",
+    "The key here is not overbidding your valuation.",
+    "Even a losing bid costs you — stay disciplined.",
+    "I'm thinking about the expected loss before committing.",
+    "High valuations justify high bids, but there's always risk.",
+    "This is a war of attrition — choose wisely.",
+    "I'll signal strength but bid strategically.",
+]
+
+HOLD_UP_MESSAGES = [
+    "I'm considering investing in this project.",
+    "I hope the other party will reciprocate my investment.",
+    "Trust is key in this hold-up scenario.",
+    "I need to be careful not to over-invest without guarantees.",
+    "Let's see if we can both benefit from this.",
+    "I'm worried about being held up after I invest.",
+    "I'll invest more if I trust we can agree on a fair split.",
+    "The more we both invest, the bigger the surplus to share.",
+    "Don't underinvest — we both lose if the surplus is small.",
+    "I'm signaling my investment intentions to build trust.",
+]
+
 GAME_MESSAGES = {
     "ultimatum": ULTIMATUM_MESSAGES,
     "bilateral-trade": TRADE_MESSAGES,
     "first-price-auction": AUCTION_MESSAGES,
     "provision-point": PROVISION_MESSAGES,
+    "all-pay-auction": ALL_PAY_MESSAGES,
+    "hold-up": HOLD_UP_MESSAGES
 }
 
 
@@ -184,7 +212,7 @@ AGENT_NAMES = [
     ("deepseek-r1", 60),
 ]
 
-GAMES = ["ultimatum", "bilateral-trade", "first-price-auction", "provision-point"]
+GAMES = ["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "all-pay-auction", "hold-up", "war-of-attrition", "sequential-investment"]
 MATCHES_PER_PAIR = 2
 
 
@@ -207,6 +235,10 @@ def seed(db_path: str) -> None:
             "bilateral-trade": "arena.games.bilateral_trade:BilateralTradeGame",
             "first-price-auction": "arena.games.first_price_auction:FirstPriceAuctionGame",
             "provision-point": "arena.games.provision_point:ProvisionPointGame",
+            "all-pay-auction": "arena.games.all_pay_auction:AllPayAuctionGame",
+            "hold-up": "arena.games.hold_up:HoldUpGame",
+            "war-of-attrition": "arena.games.war_of_attrition:WarOfAttritionGame",
+            "sequential-investment": "arena.games.sequential_investment:SequentialInvestmentGame"
         }
         mod_path, cls_name = game_factories[game_id].split(":")
         import importlib

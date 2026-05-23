@@ -98,6 +98,7 @@ class TrustGame(Game):
 			game_id=GAME_ID,
 			name="Trust (Investment then Return)",
 			min_agents=2,
+			max_agents=2,
 			description=(
 				"Trustor sends an amount x (0 <= x <= endowment) to trustee. "
 				"The sent amount is multiplied by m. Trustee then chooses how much r to return "

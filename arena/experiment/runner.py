@@ -546,6 +546,20 @@ class ExperimentRunner:
         except Exception as e:
             error_str = str(e)
 
+        # If runner hit max_turns but game never resolved, force-finish via the game engine
+        if match.status == MatchStatus.RUNNING:
+            game_obj = get_game(self._config.game_id)
+            if game_obj is not None:
+                forced = game_obj.compute_outcome(match)
+                if forced is not None:
+                    match.outcome = forced
+            if match.outcome is None:
+                match.outcome = {
+                    "payoffs": [{"agent_id": aid, "utility": 0.0} for aid in agent_ids],
+                    "reason": "max_turns_exceeded",
+                }
+            match.status = MatchStatus.FINISHED
+
         duration = time.monotonic() - start_time
         logger.set_outcome(match.outcome)
         _end_trigger = (match.outcome or {}).get("trigger") or (match.outcome or {}).get("reason") or match.status.value

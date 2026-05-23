@@ -4,6 +4,12 @@ import Card, { CardBody, CardHeader } from '../components/Card';
 import { useToast } from '../components/Toast';
 import { Users } from 'lucide-react';
 
+function formatPlayerCount(min: number, max: number | null): string {
+  if (max === null) return `${min}+ players`;
+  if (max === min) return `${min} players`;
+  return `${min}–${max} players`;
+}
+
 export default function GamesPage() {
   const [games, setGames] = useState<GameInfo[]>([]);
   const { toast } = useToast();
@@ -48,7 +54,7 @@ export default function GamesPage() {
                 </p>
                 <div className="flex items-center gap-1.5 text-xs text-text-muted">
                   <Users className="w-3.5 h-3.5" />
-                  <span>Min agents: {g.min_agents}</span>
+                  <span>{formatPlayerCount(g.min_agents, g.max_agents)}</span>
                 </div>
               </CardBody>
             </Card>

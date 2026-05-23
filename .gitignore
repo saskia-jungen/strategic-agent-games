@@ -66,4 +66,10 @@ site/
 .vercel
 .env*.local
 
-/games_yaml
+/games_yamlarena_data.db
+arena_data.db-shm
+arena_data.db-wal
+.claim_tokens.json
+__pycache__/
+*.pyc
+.venv
