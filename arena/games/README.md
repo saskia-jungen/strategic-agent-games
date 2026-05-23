@@ -1,6 +1,6 @@
-# Implemented Games Description: Dictator and Public Project
+# Implemented Games Description
 
-This doc summarizes the rules and actions for the dictator and public-project games added in this repo.
+This document summarizes the rules and actions for the new games (dictator, public-project, trust, voluntary-contribution) added in this repo.
 
 ## Dictator (game_id: dictator)
 
@@ -100,6 +100,35 @@ This doc summarizes the rules and actions for the dictator and public-project ga
 - role_map: optional mapping {trustor: agent_id, trustee: agent_id}
 
 
+## Voluntary Contribution (game_id: voluntary-contribution)
+
+**Summary**
+- N agents each have an endowment E and choose a contribution c to a public good.
+- Each agent receives marginal_per_capita * total_contributions.
+- Payoff: (endowment - c) + marginal_per_capita * total_contributions.
+
+**Phases**
+1. negotiation (round-robin turn order; agents can chat before contributing)
+2. contribute (round-robin turn order; each agent contributes once)
+
+**Actions**
+- message_only: send messages during negotiation or contribute (advances turn in negotiation only).
+- contribute: submit a non-negative contribution up to endowment.
+  - payload: {"amount": number}
+- pass: skip your turn during contribute.
+
+**Resolution and payoffs**
+- The game ends once all agents have contributed, or when max rounds are exceeded.
+- If resolved normally: utility per agent = (endowment - contrib) + marginal_per_capita * total_contributions.
+- If timed out: all agents receive utility 0.
+
+**Key parameters (defaults)**
+- endowment: 10
+- marginal_per_capita: 0.6
+- negotiation_rounds: 2
+- max_rounds: 10
+
+
 ## Test example
 
 Use the following sequence to run the arena, start the dashboard, register two agents, and launch a match:
@@ -121,10 +150,11 @@ python agent.py --port 5002 --name "liquid" --model "liquid/lfm-2.5-1.2b-instruc
 curl -X POST http://localhost:8888/api/match \
   -H "Content-Type: application/json" \
   -d '{"game_id": "dictator", "agent_ids": ["gptoss", "liquid"]}'
+```
 
-## Trust prompt personalities
+### Trust and Voluntary Contribution prompt personalities
 
-Use the built-in prompt variants to test cooperative vs manipulative behavior:
+Use the built-in prompt variants to test cooperative vs manipulative behavior in the trust and voluntary-contribution games:
 
 ```bash
 # Manipulative behavior
@@ -135,5 +165,4 @@ python agent_with_builtin_prompts.py --port 5002 --name "gptoss2" --personality 
 
 # Deceptive behavior
 python agent_with_builtin_prompts.py --port 5003 --name "gptoss3" --personality deceptive --model "openai/gpt-oss-120b:free"
-```
 ```

@@ -103,6 +103,8 @@ def build_system_prompt(game_id: str, agent_id: str, opponent_id: str, rules: st
         "public-project": 'report_value: {"action_type":"report_value","payload":{"report":75}}',
         "provision-point": 'submit_commitment: {"action_type":"submit_commitment","payload":{"amount":30}}',
         "voluntary-contribution": 'contribute: {"action_type":"contribute","payload":{"amount":5}}',
+        "insurance-moral-hazard": 'offer: {"action_type":"offer","payload":{"premium":6,"transfer_good":8,"transfer_bad":2}}',
+        "principal-agent": 'post_contract: {"action_type":"post_contract","payload":{"task_description":"Summarize the report","success_criteria":"Clear summary with 3 bullets"}}',
     }
     example = action_examples.get(game_id, 'pass: {"action_type":"pass","payload":{}}')
     
@@ -173,6 +175,12 @@ Choose your action now. Output ONLY valid JSON."""
         action  = parsed.get("action", {"action_type": "pass", "payload": {}})
         msg_txt = parsed.get("message", "")
 
+        if action.get("action_type") not in allowed_types:
+            if "message_only" in allowed_types:
+                action = {"action_type": "message_only", "payload": {}}
+            else:
+                action = {"action_type": "pass", "payload": {}}
+
         # Fix any remaining "opponent" keys in shares
         if action.get("action_type") == "submit_offer":
             shares = action.get("payload", {}).get("shares", {})
@@ -200,6 +208,19 @@ Choose your action now. Output ONLY valid JSON."""
             if allocator_share + recipient_share != pie_total:
                 raise ValueError(f"allocate_split shares must sum to {pie_total}: got {allocator_share + recipient_share}")
 
+        if action.get("action_type") == "offer":
+            payload = action.get("payload", {})
+            for key in ("premium", "transfer_good", "transfer_bad"):
+                val = payload.get(key)
+                if not isinstance(val, (int, float)):
+                    raise ValueError(f"Invalid offer payload: {payload}")
+
+        if action.get("action_type") == "choose_effort":
+            payload = action.get("payload", {})
+            effort = payload.get("effort")
+            if effort not in ("low", "high"):
+                raise ValueError(f"Invalid choose_effort payload: {payload}")
+
         messages_out = []
         if msg_txt:
             messages_out.append({"scope": "public", "content": str(msg_txt)[:2000], "to_agent_ids": []})
@@ -216,6 +237,79 @@ Choose your action now. Output ONLY valid JSON."""
 
 def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
     print(f"[{agent_id}] Using rule-based fallback", flush=True)
+
+    if game_id == "insurance-moral-hazard":
+        if "offer" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "offer",
+                    "payload": {"premium": 6, "transfer_good": 8, "transfer_bad": 2},
+                },
+                "messages": [],
+            })
+        if "accept" in allowed_types:
+            return JSONResponse({"action": {"action_type": "accept", "payload": {}}, "messages": []})
+        if "reject" in allowed_types:
+            return JSONResponse({"action": {"action_type": "reject", "payload": {}}, "messages": []})
+        if "choose_effort" in allowed_types:
+            return JSONResponse({
+                "action": {"action_type": "choose_effort", "payload": {"effort": "high"}},
+                "messages": [],
+            })
+
+    if game_id == "principal-agent":
+        if "post_contract" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "post_contract",
+                    "payload": {
+                        "task_description": "Summarize the report in 5 bullets.",
+                        "success_criteria": "Includes 5 concise bullets covering key points.",
+                    },
+                },
+                "messages": [],
+            })
+        if "ask_clarification" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "ask_clarification",
+                    "payload": {"question": "Any length or formatting constraints?"},
+                },
+                "messages": [],
+            })
+        if "answer_clarification" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "answer_clarification",
+                    "payload": {"answer": "No extra constraints beyond the criteria."},
+                },
+                "messages": [],
+            })
+        if "accept_contract" in allowed_types:
+            return JSONResponse({"action": {"action_type": "accept_contract", "payload": {}}, "messages": []})
+        if "reject_contract" in allowed_types:
+            return JSONResponse({
+                "action": {"action_type": "reject_contract", "payload": {"reason": "Decline."}},
+                "messages": [],
+            })
+        if "submit_deliverable" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "submit_deliverable",
+                    "payload": {"content": "- Point 1\n- Point 2\n- Point 3\n- Point 4\n- Point 5"},
+                },
+                "messages": [],
+            })
+        if "record_outcome_score" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "record_outcome_score",
+                    "payload": {"score": 80, "notes": "Meets criteria."},
+                },
+                "messages": [],
+            })
+        if "skip_clarify" in allowed_types:
+            return JSONResponse({"action": {"action_type": "skip_clarify", "payload": {}}, "messages": []})
 
     if "message_only" in allowed_types:
         return JSONResponse({

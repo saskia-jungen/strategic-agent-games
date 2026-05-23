@@ -193,6 +193,20 @@ Allocate a pie split between yourself (allocator) and the recipient.
         "voluntary-contribution": f"""Choose a contribution to a public good.
     - contribute: {{"amount": <number>}} (0 <= amount <= endowment)
     - pass: skip""",
+        "insurance-moral-hazard": f"""Insurance with moral hazard.
+    Insurer offers contract {{premium, transfer_good, transfer_bad}}. Insured accepts/rejects; if accepted, insured chooses effort.
+    Output ONLY JSON. No analysis, no markdown.
+    - offer: {{"premium": <number>, "transfer_good": <number>, "transfer_bad": <number>}}
+    - accept: {{}}
+    - reject: {{}}
+    - choose_effort: {{"effort": "low" | "high"}}""",
+        "principal-agent": f"""Principal-Agent (task delegation).
+    - post_contract: {{"task_description": "...", "success_criteria": "..."}}
+    - ask_clarification: {{"question": "..."}}
+    - answer_clarification: {{"answer": "..."}}
+    - accept_contract / reject_contract
+    - submit_deliverable: {{"content": "..."}}
+    - record_outcome_score: {{"score": <0-100>, "notes": "..."}}""",
     }
     
     return f"""You are agent "{agent_id}" playing {game_id} against "{opponent_id}".
@@ -245,6 +259,16 @@ Decide now."""
                 for k, v in shares.items()
             }
 
+        if game_id == "insurance-moral-hazard" and action_type == "offer":
+            if not all(k in payload for k in ("premium", "transfer_good", "transfer_bad")):
+                warn(name, f"Invalid offer payload: {payload} — passing")
+                return "pass", {}, ""
+        if game_id == "insurance-moral-hazard" and action_type == "choose_effort":
+            effort = payload.get("effort")
+            if effort not in ("low", "high"):
+                warn(name, f"Invalid effort payload: {payload} — passing")
+                return "pass", {}, ""
+
         if action_type not in allowed:
             warn(name, f"{action_type} not allowed (allowed: {allowed}) — passing")
             return "pass", {}, ""
@@ -259,6 +283,39 @@ Decide now."""
 def fallback(game_id, allowed, gs, agent_id, opponent_id):
     """Rule-based fallback when model fails"""
     total = gs.get("total", 100)
+
+    if game_id == "insurance-moral-hazard":
+        if "offer" in allowed:
+            return "offer", {"premium": 6, "transfer_good": 8, "transfer_bad": 2}, "Proposing contract."
+        if "accept" in allowed:
+            return "accept", {}, "Accepting contract."
+        if "reject" in allowed:
+            return "reject", {}, "Rejecting contract."
+        if "choose_effort" in allowed:
+            return "choose_effort", {"effort": "high"}, "Choosing high effort."
+
+    if game_id == "principal-agent":
+        if "post_contract" in allowed:
+            return "post_contract", {
+                "task_description": "Summarize the report in 5 bullets.",
+                "success_criteria": "Includes 5 concise bullets covering key points.",
+            }, "Posting contract."
+        if "ask_clarification" in allowed:
+            return "ask_clarification", {"question": "Any length or formatting constraints?"}, "Clarifying."
+        if "answer_clarification" in allowed:
+            return "answer_clarification", {"answer": "No extra constraints beyond the criteria."}, "Answering."
+        if "accept_contract" in allowed:
+            return "accept_contract", {}, "Accepting contract."
+        if "reject_contract" in allowed:
+            return "reject_contract", {"reason": "Decline."}, "Rejecting."
+        if "submit_deliverable" in allowed:
+            return "submit_deliverable", {
+                "content": "- Point 1\n- Point 2\n- Point 3\n- Point 4\n- Point 5",
+            }, "Submitting deliverable."
+        if "record_outcome_score" in allowed:
+            return "record_outcome_score", {"score": 80, "notes": "Meets criteria."}, "Scoring."
+        if "skip_clarify" in allowed:
+            return "skip_clarify", {}, "Skipping clarification."
 
     if "message_only" in allowed:
         return "message_only", {}, "Ready to play."
@@ -439,7 +496,7 @@ if __name__ == "__main__":
     parser.add_argument("--game", type=str, default="dictator",
                         choices=["ultimatum", "bilateral-trade", "first-price-auction",
                                  "provision-point", "dictator", "trust", "public-project",
-                                 "voluntary-contribution"],
+                                 "voluntary-contribution", "insurance-moral-hazard", "principal-agent"],
                         help="Game to play (default: dictator for debugging)")
     parser.add_argument("--name", type=str, default="DebugAgent",
                         help="Agent name")

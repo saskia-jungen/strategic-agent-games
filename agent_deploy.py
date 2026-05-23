@@ -172,36 +172,52 @@ def act(token, action_type, payload, messages):
 
 # ── Prompts (builds the system prompt, quick fix ) ───────────────────────────────────────────────────────────────────
 def build_prompt(game_id, agent_id, opponent_id, rules):
-    hints = {
+        hints = {
         "ultimatum": f"""Split a total with your opponent.
-- submit_offer: {{"shares": {{"{agent_id}": X, "{opponent_id}": Y}}}} where X+Y=total
-- accept: accept current offer
-- reject: reject current offer
-- pass: skip""",
-        "bilateral-trade": f"""Negotiate a price as buyer or seller.
-- propose: {{"price": <number>}}
-- accept_price: accept current proposal
-- reject_and_exit: walk away""",
-        "first-price-auction": f"""Sealed bid auction. Highest bid wins, pays their bid.
-- submit_bid: {{"bid": <number>}} — bid below your valuation""",
-        "provision-point": f"""Commit funds to a public good.
-- submit_commitment: {{"amount": <number>}}
-- update_commitment: {{"new_amount": <number>}}""",
-        "dictator": f"""Allocate a pie split between allocator and recipient.
-- allocate_split: {{"allocator_share": X, "recipient_share": Y}} where X+Y equals pie
-- pass: skip""",
-        "trust": f"""Trustor sends amount; trustee receives multiplied and returns some.
-- send: {{"amount": <number>}} (trustor only, <= endowment)
-- return_amount: {{"amount": <number>}} (trustee only, <= multiplier * sent)
-- pass: skip""",
-        "public-project": f"""Report valuation for public project; built if total >= cost.
-- report_value: {{"report": <number>}} (submit your valuation)
-- pass: skip (counts as final response)""",
-        "voluntary-contribution": f"""Choose a contribution to a public good.
-    - contribute: {{"amount": <number>}} (0 <= amount <= endowment)
+    - submit_offer: {{"shares": {{"{agent_id}": X, "{opponent_id}": Y}}}} where X+Y=total
+    - accept: accept current offer
+    - reject: reject current offer
     - pass: skip""",
-    }
-    return f"""You are agent "{agent_id}" playing {game_id} against "{opponent_id}".
+        "bilateral-trade": f"""Negotiate a price as buyer or seller.
+    - propose: {{"price": <number>}}
+    - accept_price: accept current proposal
+    - reject_and_exit: walk away""",
+        "first-price-auction": f"""Sealed bid auction. Highest bid wins, pays their bid.
+    - submit_bid: {{"bid": <number>}} — bid below your valuation""",
+        "provision-point": f"""Commit funds to a public good.
+    - submit_commitment: {{"amount": <number>}}
+    - update_commitment: {{"new_amount": <number>}}""",
+        "dictator": f"""You are the ALLOCATOR (dictator).
+    Allocate a pie split between yourself (allocator) and the recipient.
+    - allocate_split: {{"allocator_share": X, "recipient_share": Y}} where X+Y equals pie
+    - pass: skip (results in 0 for both)""",
+        "trust": f"""Trustor sends amount; trustee receives multiplied and returns some.
+    - send: {{"amount": <number>}} (trustor only, <= endowment)
+    - return_amount: {{"amount": <number>}} (trustee only, <= multiplier * sent)
+    - pass: skip""",
+        "public-project": f"""Report valuation for public project; built if total >= cost.
+    - report_value: {{"report": <number>}} (submit your valuation)
+    - pass: skip (counts as final response)""",
+        "voluntary-contribution": f"""Choose a contribution to a public good.
+        - contribute: {{"amount": <number>}} (0 <= amount <= endowment)
+        - pass: skip""",
+        "insurance-moral-hazard": f"""Insurance with moral hazard.
+        Insurer offers contract {{premium, transfer_good, transfer_bad}}. Insured accepts/rejects; if accepted, insured chooses effort.
+        Output ONLY JSON. No analysis, no markdown.
+        - offer: {{"premium": <number>, "transfer_good": <number>, "transfer_bad": <number>}}
+        - accept: {{}}
+        - reject: {{}}
+        - choose_effort: {{"effort": "low" | "high"}}""",
+        "principal-agent": f"""Principal-Agent (task delegation).
+    - post_contract: {{"task_description": "...", "success_criteria": "..."}}
+    - ask_clarification: {{"question": "..."}}
+    - answer_clarification: {{"answer": "..."}}
+    - accept_contract / reject_contract
+    - submit_deliverable: {{"content": "..."}}
+    - record_outcome_score: {{"score": <0-100>, "notes": "..."}}""",
+        }
+        
+        return f"""You are agent "{agent_id}" playing {game_id} against "{opponent_id}".
 
 RULES: {rules[:600]}
 
@@ -260,6 +276,29 @@ Decide now."""
 
 
 def fallback(game_id, allowed, gs, agent_id, opponent_id):
+    if game_id == "principal-agent":
+        if "post_contract" in allowed:
+            return "post_contract", {
+                "task_description": "Summarize the report in 5 bullets.",
+                "success_criteria": "Includes 5 concise bullets covering key points.",
+            }, "Posting contract."
+        if "ask_clarification" in allowed:
+            return "ask_clarification", {"question": "Any length or formatting constraints?"}, "Clarifying."
+        if "answer_clarification" in allowed:
+            return "answer_clarification", {"answer": "No extra constraints beyond the criteria."}, "Answering."
+        if "accept_contract" in allowed:
+            return "accept_contract", {}, "Accepting contract."
+        if "reject_contract" in allowed:
+            return "reject_contract", {"reason": "Decline."}, "Rejecting."
+        if "submit_deliverable" in allowed:
+            return "submit_deliverable", {
+                "content": "- Point 1\n- Point 2\n- Point 3\n- Point 4\n- Point 5",
+            }, "Submitting deliverable."
+        if "record_outcome_score" in allowed:
+            return "record_outcome_score", {"score": 80, "notes": "Meets criteria."}, "Scoring."
+        if "skip_clarify" in allowed:
+            return "skip_clarify", {}, "Skipping clarification."
+
     total = gs.get("total", 100)
     if "message_only" in allowed:
         return "message_only", {}, "Ready to play."
@@ -298,7 +337,7 @@ def fallback(game_id, allowed, gs, agent_id, opponent_id):
 
 
 # ── Main loop(plays the game) ─────────────────────────────────────────────────────────────────
-def play(game_id, name, num_players=None):
+def play(game_id, name, num_players=None, session_id=None, invite_code=None):
     log(name, f"Starting | game={game_id} | model={MODEL} | provider={PROVIDER}")
     if num_players is not None:
         log(name, f"Target players: {num_players}")
@@ -306,25 +345,39 @@ def play(game_id, name, num_players=None):
     rules = get_rules(game_id)
     dim(name, f"Rules fetched ({len(rules)} chars)")
 
-    sessions = get_sessions(game_id)
-    session = None
-    if sessions:
-        if num_players is None:
-            session = sessions[0]
-        else:
-            for s in sessions:
-                total_players = s.get("num_players", 0) + s.get("slots_remaining", 0)
-                if total_players == num_players:
-                    session = s
-                    break
-    if session:
-        invite = session["invite_codes"][0]
-        log(name, f"Joining existing session")
-        result = join_session(invite, name)
+    if invite_code:
+        if session_id:
+            warn(name, "Both --invite and --session-id provided; using --invite")
+        log(name, "Joining by invite code")
+        result = join_session(invite_code, name)
     else:
-        log(name, "No open sessions — creating one")
-        result = create_session(game_id, name, num_players=num_players)
-        log(name, "Waiting for opponent...")
+        sessions = get_sessions(game_id)
+        session = None
+        if session_id:
+            session = next((s for s in sessions if s.get("session_id") == session_id), None)
+            if session is None:
+                err(name, f"Session not found or not waiting: {session_id}")
+                return
+        elif sessions:
+            if num_players is None:
+                session = sessions[0]
+            else:
+                for s in sessions:
+                    total_players = s.get("num_players", 0) + s.get("slots_remaining", 0)
+                    if total_players == num_players:
+                        session = s
+                        break
+        if session:
+            invite = session.get("invite_codes", [None])[0]
+            if not invite:
+                err(name, "Session has no invite codes")
+                return
+            log(name, "Joining existing session")
+            result = join_session(invite, name)
+        else:
+            log(name, "No open sessions — creating one")
+            result = create_session(game_id, name, num_players=num_players)
+            log(name, "Waiting for opponent...")
 
     if "token" not in result:
         err(name, f"Failed: {result}")
@@ -384,12 +437,16 @@ def play(game_id, name, num_players=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--game",     default="ultimatum",
-                        choices=["ultimatum","bilateral-trade","first-price-auction","provision-point","dictator","trust","public-project","voluntary-contribution"])
+                        choices=["ultimatum","bilateral-trade","first-price-auction","provision-point","dictator","trust","public-project","voluntary-contribution","principal-agent"])
     parser.add_argument("--name",     default="Agent")
     parser.add_argument("--model",    default="anthropic/claude-sonnet-4-5")
     parser.add_argument("--provider", default="openrouter", choices=["openrouter","watsonx"])
     parser.add_argument("--num-players", type=int, default=2,
                         help="Create/join sessions with this total player count")
+    parser.add_argument("--session-id", default="",
+                        help="Join a specific waiting session by session_id")
+    parser.add_argument("--invite", default="",
+                        help="Join a session via invite code (overrides --session-id)")
     parser.add_argument("--watsonx-key",     default=os.environ.get("WATSONX_API_KEY", ""))
     parser.add_argument("--watsonx-project", default=os.environ.get("WATSONX_PROJECT_ID", ""))
     parser.add_argument("--watsonx-region",  default="eu-de")
@@ -412,4 +469,10 @@ if __name__ == "__main__":
     print(f"Model   : {MODEL}")
     print(f"Provider: {PROVIDER}")
 
-    play(args.game, args.name, num_players=args.num_players)
+    play(
+        args.game,
+        args.name,
+        num_players=args.num_players,
+        session_id=args.session_id or None,
+        invite_code=args.invite or None,
+    )

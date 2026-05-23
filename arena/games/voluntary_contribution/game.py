@@ -27,22 +27,22 @@ class VoluntaryContributionGame(Game):
 		self,
 		*,
 		endowment: float = 10,
-		social_multiplier: float = 1.6,
+		marginal_per_capita: float = 0.6,
 		max_rounds: int = 10,
 		negotiation_rounds: int = 2,
 		turn_order: TurnOrder = TurnOrder.ROUND_ROBIN,
 	) -> None:
 		if endowment < 0:
 			raise ValueError("endowment must be >= 0")
-		if social_multiplier < 0:
-			raise ValueError("social_multiplier must be >= 0")
+		if marginal_per_capita < 0:
+			raise ValueError("marginal_per_capita must be >= 0")
 		if max_rounds < 1:
 			raise ValueError("max_rounds must be >= 1")
 		if negotiation_rounds < 0:
 			raise ValueError("negotiation_rounds must be >= 0")
 
 		self._endowment = endowment
-		self._social_multiplier = social_multiplier
+		self._marginal_per_capita = marginal_per_capita
 		self._max_rounds = max_rounds
 		self._negotiation_rounds = negotiation_rounds
 		self._turn_order = turn_order
@@ -50,19 +50,16 @@ class VoluntaryContributionGame(Game):
 	@classmethod
 	def from_params(cls, game_params: dict, agent_ids: list[str]) -> "VoluntaryContributionGame":
 		endowment = game_params.get("endowment", 10)
-		social_multiplier = game_params.get("social_multiplier")
-		if social_multiplier is None:
-			marginal_per_capita = game_params.get("marginal_per_capita")
-			if marginal_per_capita is None:
-				social_multiplier = 1.6
-			else:
-				n = max(len(agent_ids), 1)
-				social_multiplier = float(marginal_per_capita) * n
+		marginal_per_capita = game_params.get("marginal_per_capita", 0.6)
+		if marginal_per_capita is None:
+			marginal_per_capita = 0.6
+		else:
+			marginal_per_capita = float(marginal_per_capita)
 		max_rounds = game_params.get("max_rounds", 10)
 		negotiation_rounds = game_params.get("negotiation_rounds", 2)
 		return cls(
 			endowment=endowment,
-			social_multiplier=social_multiplier,
+			marginal_per_capita=marginal_per_capita,
 			max_rounds=max_rounds,
 			negotiation_rounds=negotiation_rounds,
 		)
@@ -71,7 +68,7 @@ class VoluntaryContributionGame(Game):
 		return {
 			**super().get_metadata(),
 			"endowment": self._endowment,
-			"social_multiplier": self._social_multiplier,
+			"marginal_per_capita": self._marginal_per_capita,
 			"max_rounds": self._max_rounds,
 			"negotiation_rounds": self._negotiation_rounds,
 			"turn_order": self._turn_order.value,
@@ -84,7 +81,7 @@ class VoluntaryContributionGame(Game):
 			min_agents=2,
 			description=(
 				"Each agent is endowed with E tokens and chooses how many to contribute to a public good. "
-				"Total contributions are multiplied by a per-capita return rate and distributed equally to all agents. "
+				"Each agent receives marginal_per_capita * total_contributions. "
 				"Each agent keeps un-contributed tokens. "
 				"Payoff = (endowment - contrib) + marginal_per_capita * total_contributions. "
 				f"Agents may negotiate for {self._negotiation_rounds} round(s) before contributing."
@@ -203,7 +200,7 @@ class VoluntaryContributionGame(Game):
 	def _resolve(self, match: Match, *, trigger: str = "unknown") -> None:
 		contribs = match.game_state.get("contribs", {})
 		total = sum(contribs.values())
-		marginal_per_capita = self._marginal_per_capita(match)
+		marginal_per_capita = self._marginal_per_capita
 		payoffs = []
 		for aid in match.agent_ids:
 			contrib = contribs.get(aid, 0.0)
@@ -216,7 +213,6 @@ class VoluntaryContributionGame(Game):
 			"trigger": trigger,
 			"total_contributions": total,
 			"endowment": self._endowment,
-			"social_multiplier": self._social_multiplier,
 			"marginal_per_capita": marginal_per_capita,
 		}
 		match.game_state["resolved"] = True
@@ -271,19 +267,12 @@ class VoluntaryContributionGame(Game):
 			"num_agents": len(match.agent_ids),
 			"agent_ids": list(match.agent_ids),
 			"endowment": self._endowment,
-			"social_multiplier": self._social_multiplier,
-			"marginal_per_capita": self._marginal_per_capita(match),
+			"marginal_per_capita": self._marginal_per_capita,
 			"contribs": contribs,
 			"total_contributions": sum(contribs.values()),
 			"action_history": match.game_state.get("action_history", []),
 			"resolved": match.game_state.get("resolved", False),
 		}
-
-	def _marginal_per_capita(self, match: Match) -> float:
-		n = len(match.agent_ids)
-		if n <= 0:
-			return 0.0
-		return self._social_multiplier / n
 
 	# ------------------------------------------------------------------
 	# apply_action

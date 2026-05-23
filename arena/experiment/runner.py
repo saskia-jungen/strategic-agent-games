@@ -549,8 +549,21 @@ class ExperimentRunner:
         duration = time.monotonic() - start_time
         logger.set_outcome(match.outcome)
         _end_trigger = (match.outcome or {}).get("trigger") or (match.outcome or {}).get("reason") or match.status.value
-        logger.log_event("match_end", status=match.status.value, trigger=_end_trigger)
-        self._push_live_event(dashboard_state, dashboard_lock, match_id, "match_end", status=match.status.value, trigger=_end_trigger)
+        logger.log_event(
+            "match_end",
+            status=match.status.value,
+            trigger=_end_trigger,
+            outcome=match.outcome,
+        )
+        self._push_live_event(
+            dashboard_state,
+            dashboard_lock,
+            match_id,
+            "match_end",
+            status=match.status.value,
+            trigger=_end_trigger,
+            outcome=match.outcome,
+        )
         if dashboard_state is not None:
             if dashboard_lock:
                 with dashboard_lock:

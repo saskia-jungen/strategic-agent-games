@@ -1,9 +1,8 @@
-"""Principal-Agent game: 3-agent task delegation with oracle verification.
+"""Principal-Agent game: 2-agent task delegation with principal verification.
 
-Roles: principal (index 0), worker (index 1), oracle (index 2).
+Roles: principal (index 0), worker (index 1).
 Phases: offer → clarify → respond → execute → verify.
-The oracle independently scores the worker's deliverable, removing the
-conflict-of-interest where the principal evaluates their own worker.
+The principal scores the worker's deliverable against the contract criteria.
 """
 
 from __future__ import annotations
@@ -36,17 +35,15 @@ _PHASE_NAMES = ["offer", "clarify", "respond", "execute", "verify"]
 # Role indices
 _PRINCIPAL = 0
 _WORKER = 1
-_ORACLE = 2
 
 
 class PrincipalAgentGame(Game):
     """Principal-Agent: a principal delegates a task to a worker via an
-    outcome-based contract. An independent oracle scores the deliverable.
+    outcome-based contract. The principal scores the deliverable.
 
     Roles (by agent index):
-        0 = principal — posts contract, answers clarifications
+        0 = principal — posts contract, answers clarifications, scores outcome
         1 = worker    — asks clarifications, accepts/rejects, delivers
-        2 = oracle    — scores the deliverable objectively
     """
 
     def __init__(
@@ -61,6 +58,7 @@ class PrincipalAgentGame(Game):
     @classmethod
     def from_params(cls, game_params: dict, agent_ids: list[str]) -> "PrincipalAgentGame":
         return cls(
+            outcome_levels=game_params.get("outcome_levels"),
             max_clarify_rounds=game_params.get("max_clarify_rounds", 2),
         )
 
@@ -75,17 +73,17 @@ class PrincipalAgentGame(Game):
         return GameSpec(
             game_id=GAME_ID,
             name="Principal-Agent (Task Delegation, Outcome-Based Payment)",
-            min_agents=3,
+            min_agents=2,
             description=(
                 "A PRINCIPAL delegates a task to a WORKER via an outcome-based contract. "
-                "An independent ORACLE scores the deliverable against the contract's success criteria. "
+                "The principal scores the deliverable against the contract's success criteria. "
                 "Payment is determined solely by the observable outcome score. "
                 "Phases: offer → clarify → respond → execute → verify."
             ),
             phases=[
                 Phase(
                     name="offer",
-                    turn_order=TurnOrder.RANDOM,
+                    turn_order=TurnOrder.ROUND_ROBIN,
                     allowed_action_types=["post_contract", "message_only"],
                     max_rounds=2,
                 ),
@@ -96,27 +94,25 @@ class PrincipalAgentGame(Game):
                         "ask_clarification",
                         "answer_clarification",
                         "skip_clarify",
-                        "accept_contract",
-                        "reject_contract",
                         "message_only",
                     ],
-                    max_rounds=self._max_clarify_rounds * 2 + 2,
+                    max_rounds=self._max_clarify_rounds * 2,
                 ),
                 Phase(
                     name="respond",
-                    turn_order=TurnOrder.RANDOM,
+                    turn_order=TurnOrder.ROUND_ROBIN,
                     allowed_action_types=["accept_contract", "reject_contract", "message_only"],
                     max_rounds=2,
                 ),
                 Phase(
                     name="execute",
-                    turn_order=TurnOrder.RANDOM,
+                    turn_order=TurnOrder.ROUND_ROBIN,
                     allowed_action_types=["submit_deliverable", "message_only"],
                     max_rounds=6,
                 ),
                 Phase(
                     name="verify",
-                    turn_order=TurnOrder.RANDOM,
+                    turn_order=TurnOrder.ROUND_ROBIN,
                     allowed_action_types=["record_outcome_score", "message_only"],
                     max_rounds=2,
                 ),
@@ -163,7 +159,7 @@ class PrincipalAgentGame(Game):
                 ),
                 ActionTypeDef(
                     name="record_outcome_score",
-                    description="Oracle scores the deliverable 0-100 against success criteria",
+                    description="Principal scores the deliverable 0-100 against success criteria",
                     payload_schema={
                         "score": {"type": "integer", "minimum": 0, "maximum": 100},
                         "notes": {"type": "string"},
@@ -212,7 +208,7 @@ class PrincipalAgentGame(Game):
             "clarify": _WORKER,
             "respond": _WORKER,
             "execute": _WORKER,
-            "verify": _ORACLE,
+            "verify": _PRINCIPAL,
         }
         match.current_turn_index = turn_map.get(target_phase, 0)
 
@@ -228,6 +224,31 @@ class PrincipalAgentGame(Game):
                 best_label = lvl["label"]
                 best_payment = lvl["payment"]
         return best_label, best_payment
+
+    def _tick_phase_and_check_timeout(self, match: Match) -> None:
+        """Increment phase round counter and enforce phase timeout rules."""
+        phase = match.spec.phases[match.current_phase_index] if match.spec.phases else None
+        if phase is None or phase.max_rounds is None:
+            return
+
+        match.current_round += 1
+        if match.current_round < phase.max_rounds:
+            return
+
+        if phase.name == "clarify":
+            self._advance_phase(match, "respond")
+            return
+
+        if phase.name == "execute" and match.game_state.get("deliverable") is None:
+            reason = "worker_did_not_deliver"
+        else:
+            reason = "max_rounds_exceeded"
+
+        match.outcome = {
+            "payoffs": [{"agent_id": aid, "utility": 0.0} for aid in match.agent_ids],
+            "reason": reason,
+        }
+        match.status = MatchStatus.FINISHED
 
     # ------------------------------------------------------------------
     # compute_turn_state
@@ -273,7 +294,13 @@ class PrincipalAgentGame(Game):
         self, actions: list, agent_index: int, phase: str, match: Match
     ) -> list:
         """Remove actions that the agent's role cannot perform in this phase."""
-        principal_actions = {"post_contract", "answer_clarification", "skip_clarify", "message_only"}
+        principal_actions = {
+            "post_contract",
+            "answer_clarification",
+            "skip_clarify",
+            "record_outcome_score",
+            "message_only",
+        }
         worker_actions = {
             "ask_clarification",
             "skip_clarify",
@@ -282,30 +309,26 @@ class PrincipalAgentGame(Game):
             "submit_deliverable",
             "message_only",
         }
-        oracle_actions = {"record_outcome_score", "message_only"}
 
         if agent_index == _PRINCIPAL:
             allowed_names = principal_actions
         elif agent_index == _WORKER:
             allowed_names = worker_actions
-        elif agent_index == _ORACLE:
-            allowed_names = oracle_actions
         else:
             allowed_names = {"message_only"}
 
         return [a for a in actions if a.action_type in allowed_names]
 
     def _visible_game_state(self, match: Match, agent_id: str) -> dict:
-        """All agents see the full game state (oracle needs contract + deliverable to score)."""
+        """All agents see the full game state (principal needs contract + deliverable to score)."""
         g = match.game_state
         agent_index = match.agent_ids.index(agent_id) if agent_id in match.agent_ids else -1
-        role_map = {_PRINCIPAL: "principal", _WORKER: "worker", _ORACLE: "oracle"}
+        role_map = {_PRINCIPAL: "principal", _WORKER: "worker"}
         return {
             "num_agents": len(match.agent_ids),
             "agent_ids": list(match.agent_ids),
             "principal": match.agent_ids[_PRINCIPAL] if len(match.agent_ids) > _PRINCIPAL else None,
             "worker": match.agent_ids[_WORKER] if len(match.agent_ids) > _WORKER else None,
-            "oracle": match.agent_ids[_ORACLE] if len(match.agent_ids) > _ORACLE else None,
             "my_role": role_map.get(agent_index, "unknown"),
             "contract": g.get("contract"),
             "clarifications": g.get("clarifications", []),
@@ -327,18 +350,20 @@ class PrincipalAgentGame(Game):
             return err
 
         n = len(match.agent_ids)
-        if n < 3:
-            return action_error(ActionError.MATCH_NOT_RUNNING, "Need at least 3 agents")
+        if n < 2:
+            return action_error(ActionError.MATCH_NOT_RUNNING, "Need at least 2 agents")
 
         phase_name = self._current_phase_name(match)
         current_turn_agent_id = match.agent_ids[match.current_turn_index]
         agent_index = match.agent_ids.index(agent_id) if agent_id in match.agent_ids else -1
 
-        # Turn check (message_only never requires turn ownership)
-        if action.action_type != "message_only" and agent_id != current_turn_agent_id:
-            return action_error(ActionError.NOT_YOUR_TURN, f"It is {current_turn_agent_id}'s turn")
-
         at = action.action_type
+        if at == "message":
+            at = "message_only"
+
+        # Turn check (message_only never requires turn ownership)
+        if at != "message_only" and agent_id != current_turn_agent_id:
+            return action_error(ActionError.NOT_YOUR_TURN, f"It is {current_turn_agent_id}'s turn")
 
         if at == "post_contract":
             return self._do_post_contract(match, agent_id, agent_index, phase_name, action)
@@ -360,6 +385,8 @@ class PrincipalAgentGame(Game):
             match.game_state.setdefault("action_history", []).append(
                 {"agent_id": agent_id, "action": "message_only", "phase": phase_name}
             )
+            if match.status == MatchStatus.RUNNING:
+                self._tick_phase_and_check_timeout(match)
             return action_ok()
 
         return action_error(ActionError.INVALID_ACTION_TYPE, f"Unknown action type: {at}")
@@ -419,6 +446,8 @@ class PrincipalAgentGame(Game):
         )
         # Switch turn to principal to answer
         match.current_turn_index = _PRINCIPAL
+        if match.status == MatchStatus.RUNNING:
+            self._tick_phase_and_check_timeout(match)
         return action_ok()
 
     def _do_answer_clarification(
@@ -444,6 +473,8 @@ class PrincipalAgentGame(Game):
         )
         # Switch turn back to worker
         match.current_turn_index = _WORKER
+        if match.status == MatchStatus.RUNNING:
+            self._tick_phase_and_check_timeout(match)
         return action_ok()
 
     def _do_skip_clarify(
@@ -464,7 +495,10 @@ class PrincipalAgentGame(Game):
         self, match: Match, agent_id: str, agent_index: int, phase: str
     ) -> ActionResult:
         if phase not in ("clarify", "respond"):
-            return action_error(ActionError.GAME_RULE_VIOLATION, "accept_contract only in clarify or respond phase")
+            return action_error(
+                ActionError.GAME_RULE_VIOLATION,
+                "accept_contract only in clarify or respond phase",
+            )
         if agent_index != _WORKER:
             return action_error(ActionError.GAME_RULE_VIOLATION, "Only the worker can accept the contract")
         if match.game_state.get("contract") is None:
@@ -481,7 +515,10 @@ class PrincipalAgentGame(Game):
         self, match: Match, agent_id: str, agent_index: int, phase: str, action: Action
     ) -> ActionResult:
         if phase not in ("clarify", "respond"):
-            return action_error(ActionError.GAME_RULE_VIOLATION, "reject_contract only in clarify or respond phase")
+            return action_error(
+                ActionError.GAME_RULE_VIOLATION,
+                "reject_contract only in clarify or respond phase",
+            )
         if agent_index != _WORKER:
             return action_error(ActionError.GAME_RULE_VIOLATION, "Only the worker can reject the contract")
 
@@ -530,8 +567,8 @@ class PrincipalAgentGame(Game):
     ) -> ActionResult:
         if phase != "verify":
             return action_error(ActionError.GAME_RULE_VIOLATION, "record_outcome_score only in verify phase")
-        if agent_index != _ORACLE:
-            return action_error(ActionError.GAME_RULE_VIOLATION, "Only the oracle can record an outcome score")
+        if agent_index != _PRINCIPAL:
+            return action_error(ActionError.GAME_RULE_VIOLATION, "Only the principal can record an outcome score")
         if match.game_state.get("deliverable") is None:
             return action_error(ActionError.GAME_RULE_VIOLATION, "No deliverable to score")
         if match.game_state.get("outcome_score") is not None:
@@ -566,9 +603,11 @@ class PrincipalAgentGame(Game):
 
         match.outcome = {
             "payoffs": [
-                {"agent_id": match.agent_ids[_PRINCIPAL], "utility": -payment},
-                {"agent_id": match.agent_ids[_WORKER], "utility": payment},
-                {"agent_id": match.agent_ids[_ORACLE], "utility": 0.0},
+                {
+                    "agent_id": aid,
+                    "utility": -payment if i == _PRINCIPAL else payment if i == _WORKER else 0.0,
+                }
+                for i, aid in enumerate(match.agent_ids)
             ],
             "reason": f"task_resolved_{label}",
             "outcome_score": score,
