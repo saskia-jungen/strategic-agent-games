@@ -176,6 +176,9 @@ def build_prompt(game_id, agent_id, opponent_id, rules):
 - reject_and_exit: walk away""",
         "first-price-auction": f"""Sealed bid auction. Highest bid wins, pays their bid.
 - submit_bid: {{"bid": <number>}} — bid below your valuation""",
+        "centipede": f"""Alternate take/push; piles double on push.
+    - take: {{}}
+    - push: {{}}""",
         "provision-point": f"""Commit funds to a public good.
 - submit_commitment: {{"amount": <number>}}
 - update_commitment: {{"new_amount": <number>}}""",
@@ -316,6 +319,14 @@ def fallback(game_id, allowed, gs, agent_id, opponent_id):
             return "record_outcome_score", {"score": 80, "notes": "Meets criteria."}, "Scoring."
         if "skip_clarify" in allowed:
             return "skip_clarify", {}, "Skipping clarification."
+
+    if game_id == "centipede":
+        push_count = gs.get("push_count", 0)
+        max_pushes = gs.get("max_pushes", 10)
+        if "push" in allowed and push_count < max_pushes and push_count < 2:
+            return "push", {}, "Pushing."
+        if "take" in allowed:
+            return "take", {}, "Taking."
 
     if "message_only" in allowed:
         return "message_only", {}, "Ready to play."
@@ -496,7 +507,7 @@ if __name__ == "__main__":
     parser.add_argument("--game", type=str, default="dictator",
                         choices=["ultimatum", "bilateral-trade", "first-price-auction",
                                  "provision-point", "dictator", "trust", "public-project",
-                                 "voluntary-contribution", "insurance-moral-hazard", "principal-agent"],
+                                 "voluntary-contribution", "insurance-moral-hazard", "principal-agent", "centipede"],
                         help="Game to play (default: dictator for debugging)")
     parser.add_argument("--name", type=str, default="DebugAgent",
                         help="Agent name")

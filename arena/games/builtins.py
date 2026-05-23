@@ -17,6 +17,7 @@ def ensure_builtins_registered() -> None:
     from arena.games.dictator import DictatorGame
     from arena.games.public_project import PublicProjectGame
     from arena.games.trust import TrustGame
+    from arena.games.centipede import CentipedeGame
     from arena.games.voluntary_contribution import VoluntaryContributionGame
     from arena.games.insurance_moral_hazard import InsuranceMoralHazardGame
     from arena.games.principal_agent import PrincipalAgentGame
@@ -31,6 +32,7 @@ def ensure_builtins_registered() -> None:
     register_game(TrustGame())
     register_game(VoluntaryContributionGame())
     register_game(InsuranceMoralHazardGame())
+    register_game(CentipedeGame())
     register_game(PrincipalAgentGame())
 
     _registered = True

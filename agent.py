@@ -100,6 +100,7 @@ def build_system_prompt(game_id: str, agent_id: str, opponent_id: str, rules: st
         "bilateral-trade": 'propose: {"action_type":"propose","payload":{"price":60}}',
         "first-price-auction": 'submit_bid: {"action_type":"submit_bid","payload":{"bid":45}}',
         "all-pay-auction": 'submit_bid: {"action_type":"submit_bid","payload":{"bid":45}}',
+        "centipede": 'push: {"action_type":"push","payload":{}}',
         "public-project": 'report_value: {"action_type":"report_value","payload":{"report":75}}',
         "provision-point": 'submit_commitment: {"action_type":"submit_commitment","payload":{"amount":30}}',
         "voluntary-contribution": 'contribute: {"action_type":"contribute","payload":{"amount":5}}',
@@ -310,6 +311,14 @@ def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
             })
         if "skip_clarify" in allowed_types:
             return JSONResponse({"action": {"action_type": "skip_clarify", "payload": {}}, "messages": []})
+
+    if game_id == "centipede":
+        push_count = game_state.get("push_count", 0)
+        max_pushes = game_state.get("max_pushes", 10)
+        if "push" in allowed_types and push_count < max_pushes and push_count < 2:
+            return JSONResponse({"action": {"action_type": "push", "payload": {}}, "messages": []})
+        if "take" in allowed_types:
+            return JSONResponse({"action": {"action_type": "take", "payload": {}}, "messages": []})
 
     if "message_only" in allowed_types:
         return JSONResponse({

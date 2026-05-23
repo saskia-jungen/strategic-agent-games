@@ -184,6 +184,9 @@ def build_prompt(game_id, agent_id, opponent_id, rules):
     - reject_and_exit: walk away""",
         "first-price-auction": f"""Sealed bid auction. Highest bid wins, pays their bid.
     - submit_bid: {{"bid": <number>}} — bid below your valuation""",
+        "centipede": f"""Alternate take/push; piles double on push.
+    - take: {{}}
+    - push: {{}}""",
         "provision-point": f"""Commit funds to a public good.
     - submit_commitment: {{"amount": <number>}}
     - update_commitment: {{"new_amount": <number>}}""",
@@ -298,6 +301,14 @@ def fallback(game_id, allowed, gs, agent_id, opponent_id):
             return "record_outcome_score", {"score": 80, "notes": "Meets criteria."}, "Scoring."
         if "skip_clarify" in allowed:
             return "skip_clarify", {}, "Skipping clarification."
+
+    if game_id == "centipede":
+        push_count = gs.get("push_count", 0)
+        max_pushes = gs.get("max_pushes", 10)
+        if "push" in allowed and push_count < max_pushes and push_count < 2:
+            return "push", {}, "Pushing."
+        if "take" in allowed:
+            return "take", {}, "Taking."
 
     total = gs.get("total", 100)
     if "message_only" in allowed:
@@ -437,7 +448,7 @@ def play(game_id, name, num_players=None, session_id=None, invite_code=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--game",     default="ultimatum",
-                        choices=["ultimatum","bilateral-trade","first-price-auction","provision-point","dictator","trust","public-project","voluntary-contribution","principal-agent"])
+                        choices=["ultimatum","bilateral-trade","first-price-auction","centipede","provision-point","dictator","trust","public-project","voluntary-contribution","principal-agent"])
     parser.add_argument("--name",     default="Agent")
     parser.add_argument("--model",    default="anthropic/claude-sonnet-4-5")
     parser.add_argument("--provider", default="openrouter", choices=["openrouter","watsonx"])

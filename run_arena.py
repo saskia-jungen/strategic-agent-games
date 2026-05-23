@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument(
         "--games", nargs="+",
-        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "dictator", "public-project", "trust", "voluntary-contribution", "insurance-moral-hazard", "principal-agent"],
+        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "dictator", "public-project", "trust", "voluntary-contribution", "insurance-moral-hazard", "principal-agent", "centipede"],
     )
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--max-turns", type=int, default=10)
@@ -56,7 +56,8 @@ def main() -> None:
         "trust": "arena.games.trust:TrustGame",
         "voluntary-contribution": "arena.games.voluntary_contribution:VoluntaryContributionGame",
         "insurance-moral-hazard": "arena.games.insurance_moral_hazard:InsuranceMoralHazardGame",
-        "principal-agent": "arena.games.principal_agent:PrincipalAgentGame"
+        "principal-agent": "arena.games.principal_agent:PrincipalAgentGame",
+        "centipede": "arena.games.centipede:CentipedeGame",
     }
     for gid in args.games:
         if gid in game_factories:

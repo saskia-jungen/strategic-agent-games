@@ -278,6 +278,14 @@ Rules: highest bid wins and pays their bid. Losers pay nothing.
 
 Action: {{"action_type":"submit_bid","payload":{{"bid":45}}}}""",
 
+        "centipede": f"""You are playing the Centipede Game.
+    Rules: alternate take/push. On take, you keep the larger pile and give the smaller pile to the opponent.
+    On push, the piles pass to the opponent and both piles double. Game ends on take or after max_pushes.
+
+    Actions:
+    - take: {{"action_type":"take","payload":{{}}}}
+    - push: {{"action_type":"push","payload":{{}}}}""",
+
         "bilateral-trade": f"""You are playing Bilateral Trade. You are negotiating a price.
 Check your role (buyer/seller) in game_state.
 
@@ -600,6 +608,14 @@ def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
             })
         if "skip_clarify" in allowed_types:
             return JSONResponse({"action": {"action_type": "skip_clarify", "payload": {}}, "messages": []})
+
+    if game_id == "centipede":
+        push_count = game_state.get("push_count", 0)
+        max_pushes = game_state.get("max_pushes", 10)
+        if "push" in allowed_types and push_count < max_pushes and push_count < 2:
+            return JSONResponse({"action": {"action_type": "push", "payload": {}}, "messages": []})
+        if "take" in allowed_types:
+            return JSONResponse({"action": {"action_type": "take", "payload": {}}, "messages": []})
 
     if game_id in ("all-pay-auction", "first-price-auction"):
         if "submit_bid" in allowed_types and not game_state.get("my_bid"):
