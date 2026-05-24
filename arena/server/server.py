@@ -42,6 +42,16 @@ _DEFAULT_GAME_PARAMS: dict[str, dict[str, Any]] = {
     "interaction": "complements",
     "payoff_scale": 4.0,       # joint_benefit = 4 × l × f
     "role_map": None
+},
+"common-agency": {
+    "max_rounds": 15,
+    "num_principals": 2,
+    "benefit_low": 0.0,
+    "benefit_high": 10.0,
+    "effort_cost": 1.0,
+    "p_high_low_effort": 0.4,
+    "p_high_high_effort": 0.7,
+    "agent_id": None
 }
 }
 
