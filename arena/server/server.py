@@ -34,6 +34,7 @@ _DEFAULT_GAME_PARAMS: dict[str, dict[str, Any]] = {
     "all-pay-auction": {"rv1": 50, "rv2": 50},
     "hold-up": {"max_rounds": 10, "investment_cost": 1.0, "surplus_base": 0.0, "surplus_multiplier": 3.0},
     "war-of-attrition": {"max_rounds": 10, "cost_rate": 1.0, "prize": 10.0, "max_time": 10.0},
+    "werewolf": {"discuss_rounds": 8},
     "dutch-auction": {"max_rounds": 10, "start_price": 100.0, "decrement": 5.0, "min_price": 0.0, "rv1": 80.0, "rv2": 65.0},
     "english-auction": {"max_rounds": 4, "start_price": 0.0, "min_increment": 15.0, "rv1": 80.0, "rv2": 65.0},
     "sequential-investment": {
@@ -53,6 +54,10 @@ _DEFAULT_GAME_PARAMS: dict[str, dict[str, Any]] = {
     "p_high_high_effort": 0.7,
     "agent_id": None
 }
+}
+
+_DEFAULT_MAX_TURNS: dict[str, int] = {
+    "werewolf": 250,
 }
 
 def build_arena_app(
@@ -282,7 +287,7 @@ def build_arena_app(
         creator_name = body.get("player_name", "")
         claim_token = body.get("claim_token")
         game_params = body.get("game_params", _DEFAULT_GAME_PARAMS.get(game_id, {}))
-        req_max_turns = body.get("max_turns", max_turns)
+        req_max_turns = body.get("max_turns", _DEFAULT_MAX_TURNS.get(game_id, max_turns))
 
         # Validate name claim
         if creator_name:
