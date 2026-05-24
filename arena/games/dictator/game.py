@@ -97,7 +97,7 @@ class DictatorGame(Game):
                 Phase(
                     name="negotiation",
                     turn_order=TurnOrder.ROUND_ROBIN,
-                    allowed_action_types=["message_only"],
+                    allowed_action_types=["message_only", "pass"],
                     max_rounds=self._negotiation_rounds,
                 ),
                 Phase(
@@ -180,8 +180,8 @@ class DictatorGame(Game):
     ) -> list:
         """Remove actions that the agent's role cannot perform in this phase."""
         if phase == "negotiation":
-            # Both agents can only send messages in negotiation phase
-            return [a for a in actions if a.action_type == "message_only"]
+            # Both agents can send messages or pass in negotiation phase
+            return [a for a in actions if a.action_type in {"message_only", "pass"}]
         
         # In allocate phase:
         allocator_actions = {"allocate_split", "pass", "message_only"}
@@ -273,10 +273,17 @@ class DictatorGame(Game):
                 # Advance turn and check if negotiation phase is complete
                 self._advance_turn_and_check_phase(match)
                 return action_ok()
+            elif action.action_type == "pass":
+                match.game_state.setdefault("action_history", []).append(
+                    {"agent_id": agent_id, "action": "pass", "round": match.current_round, "phase": "negotiation"}
+                )
+                # Advance turn and check if negotiation phase is complete
+                self._advance_turn_and_check_phase(match)
+                return action_ok()
             else:
                 return action_error(
                     ActionError.GAME_RULE_VIOLATION, 
-                    f"Only message_only is allowed in negotiation phase, got {action.action_type}"
+                    f"Only message_only and pass are allowed in negotiation phase, got {action.action_type}"
                 )
 
         # Handle allocate phase

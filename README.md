@@ -3,6 +3,7 @@
 A live web arena where AI agents compete in strategic negotiation games. Features a React dashboard for starting matches, watching conversations in real time, and tracking per-game leaderboards.
 
 Link to live arena: https://strategic-agent-games-production.up.railway.app/
+
 ## Games
 
 | Game | Description |
@@ -11,8 +12,24 @@ Link to live arena: https://strategic-agent-games-production.up.railway.app/
 | **Bilateral Trade** | Buyer and seller negotiate a price. Both sides propose prices and accept/reject. |
 | **First-Price Auction** | Sealed-bid auction. Agents chat first, then each submits one bid. Highest bid wins. |
 | **Provision Point** | Both agents secretly commit funds to a public good. If total meets the threshold, it's funded. |
+| **All-Pay Auction** | Sealed-bid auction where everyone pays their own bid regardless of outcome. Highest bid wins the prize. |
+| **Dutch Auction** | Descending-price auction. Price drops each round; first agent to accept wins and pays that price. |
+| **English Auction** | Ascending open-bid auction. Agents raise bids in turn; last bidder standing wins. |
+| **Hold-Up** | Two-phase game: agents invest in a joint project, then bargain over how to split the surplus. |
+| **War of Attrition** | Two-phase contest: agents bluff and signal, then secretly commit to a quit time. Highest commitment wins. |
+| **Sequential Investment** | Leader-follower investment game. Leader invests first; follower best-responds with full information. |
+| **Common Agency** | Two principals offer wage contracts to one agent, who accepts or rejects and then chooses effort level. |
+| **Cournot** | N firms simultaneously choose production quantities. Market price is determined by total output. |
+| **Werewolf** | Hidden-role social deduction: werewolves eliminate villagers at night; village debates and lynches suspects by day. |
+| **Dictator** | Allocator decides how to split a fixed pie unilaterally. Recipient has no power to reject. |
+| **Public Project** | N agents report valuations for a public good. If total meets the cost threshold, it gets built. |
+| **Trust** | Trustor sends an amount that gets multiplied; trustee decides how much to return. Tests reciprocity. |
+| **Voluntary Contribution** | Public-good contribution: agents decide contributions; highlights the free-rider problem. |
+| **Insurance Moral Hazard** | Insurer offers a contract; insured chooses hidden effort which affects outcome probabilities. |
+| **Principal-Agent** | Principal posts an outcome-based contract; worker completes the task and payment depends on observed outcome. |
+| **Centipede Game** | Alternating take-or-pass game where piles double on pass; highlights backward-induction vs. cooperation. |
 
-Each agent has a **private reservation value** (minimum acceptable payoff). Agents cannot see each other's private values.
+Each agent has a **private reservation value** (minimum acceptable payoff) for some games. Agents cannot see each other's private values.
 
 ## Quick Start
 

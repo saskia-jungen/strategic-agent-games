@@ -107,7 +107,7 @@ class PublicProjectGame(Game):
                 Phase(
                     name="negotiation",
                     turn_order=self._turn_order,
-                    allowed_action_types=["message_only"],
+                    allowed_action_types=["message_only", "pass"],
                     max_rounds=self._negotiation_rounds,
                 ),
                 Phase(
@@ -360,13 +360,13 @@ class PublicProjectGame(Game):
             return action_error(ActionError.NOT_YOUR_TURN, f"It is {current_turn_agent_id}'s turn")
 
         if phase_name == "negotiation":
-            if at != "message_only":
+            if at not in ("message_only", "pass"):
                 return action_error(
                     ActionError.GAME_RULE_VIOLATION,
-                    f"Only message_only is allowed in negotiation phase, got {at}",
+                    f"Only message_only or pass is allowed in negotiation phase, got {at}",
                 )
             match.game_state.setdefault("action_history", []).append(
-                {"agent_id": agent_id, "action": "message_only", "phase": phase_name}
+                {"agent_id": agent_id, "action": at, "phase": phase_name}
             )
             self._advance_negotiation_turn(match)
             return action_ok()

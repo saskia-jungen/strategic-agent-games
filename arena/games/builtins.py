@@ -24,6 +24,10 @@ def ensure_builtins_registered() -> None:
     from arena.games.dutch_auction import DutchAuctionGame
     from arena.games.english_auction import EnglishAuctionGame
     from arena.games.sequential_investment import SequentialInvestmentGame
+    from arena.games.centipede import CentipedeGame
+    from arena.games.voluntary_contribution import VoluntaryContributionGame
+    from arena.games.insurance_moral_hazard import InsuranceMoralHazardGame
+    from arena.games.principal_agent import PrincipalAgentGame
 
     register_game(UltimatumGame())
     register_game(FirstPriceAuctionGame())
@@ -40,5 +44,9 @@ def ensure_builtins_registered() -> None:
     register_game(DutchAuctionGame())
     register_game(EnglishAuctionGame())
     register_game(SequentialInvestmentGame())
+    register_game(VoluntaryContributionGame())
+    register_game(InsuranceMoralHazardGame())
+    register_game(CentipedeGame())
+    register_game(PrincipalAgentGame())
 
     _registered = True

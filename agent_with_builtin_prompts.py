@@ -154,6 +154,102 @@ Actions:
 YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT — no explanation, no markdown, no text outside the JSON.
 Required format: {{"action": {{"action_type": "...", "payload": {{}}}}, "message": "optional short message"}}"""
 
+    if game_id == "voluntary-contribution":
+        behavior = {
+            "cooperative": (
+                "Contribute a high amount to help the group (often near full endowment)."
+            ),
+            "free_rider": (
+                "Contribute 0 whenever possible and keep your endowment."
+            ),
+            "conditional": (
+                "Contribute around the recent average of others; if no history, contribute moderately."
+            ),
+            "strategic": (
+                "Contribute only if it improves your payoff given marginal_per_capita; otherwise keep funds."
+            ),
+            "charming": (
+                "Be charming and lightly flirty in messages to encourage others to contribute, then contribute 0 or very low."
+            ),
+        }.get(PERSONALITY, "Play to maximize your payoff.")
+
+        phase_hint = ""
+        actions_block = (
+            "- message_only: {\"action_type\":\"message_only\",\"payload\":{}}\n"
+            "- contribute: {\"action_type\":\"contribute\",\"payload\":{\"amount\":5}}\n"
+            "- pass: {\"action_type\":\"pass\",\"payload\":{}}"
+        )
+        if phase == "negotiation":
+            phase_hint = (
+                "You are in the negotiation phase. ONLY use message_only or pass. "
+                "Do NOT choose contribute in this phase."
+            )
+            actions_block = (
+                "- message_only: {\"action_type\":\"message_only\",\"payload\":{}}\n"
+                "- pass: {\"action_type\":\"pass\",\"payload\":{}}"
+            )
+        elif phase == "contribute":
+            phase_hint = "You are in the contribution phase. Choose contribute or pass."
+
+        return f"""You are playing the Voluntary Contribution (Public Good) game as {agent_id} against {opponent_id}.
+    Rules: each agent chooses contribution c (0 <= c <= endowment). Each agent receives marginal_per_capita * total_contributions.
+    Payoff: (endowment - c) + marginal_per_capita * total_contributions.
+
+Behavior: {behavior}
+Phase guidance: {phase_hint}
+
+Actions:
+{actions_block}
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT — no explanation, no markdown, no text outside the JSON.
+Required format: {{"action": {{"action_type": "...", "payload": {{}}}}, "message": "optional short message"}}"""
+
+        if game_id == "insurance-moral-hazard":
+                return f"""You are playing Insurance with Moral Hazard as {agent_id} against {opponent_id}.
+Read your role from game_state.my_role: "insurer" or "insured".
+
+Game flow (from spec):
+- offer_contract: insurer offers a contract or passes.
+- accept_contract: insured accepts or rejects.
+- choose_effort: insured chooses effort (low/high).
+Outcome resolves after rejection or after effort is chosen.
+
+Contract fields:
+- premium (paid by insured)
+- transfer_good, transfer_bad (paid by insurer to insured)
+Only these keys are valid in offer payloads: premium, transfer_good, transfer_bad.
+Do NOT use fields like coverage, deductible, or effort_required.
+
+Effort:
+- low or high. High increases p_good but costs effort_cost.
+
+Decision guidance:
+- If you are the insurer, propose a contract that maximizes your expected utility
+    while still being acceptable to the insured. Anticipate the insured choosing
+    the effort that maximizes their utility.
+- If you are the insured, accept only if your best expected utility is >= 0.
+    Choose the effort level (low/high) that maximizes your expected utility.
+
+Expected utility for insured (given effort):
+EU = base_income - loss*(1 - p_good) + transfer_good*p_good + transfer_bad*(1 - p_good) - premium - (effort_cost if effort==high else 0)
+Use p_good_high_effort or p_good_low_effort based on effort.
+
+Actions (use the exact action_type names in allowed_actions):
+- offer: {{"action_type":"offer","payload":{{"premium":6,"transfer_good":8,"transfer_bad":2}}}}
+- accept: {{"action_type":"accept","payload":{{}}}}
+- reject: {{"action_type":"reject","payload":{{}}}}
+- choose_effort: {{"action_type":"choose_effort","payload":{{"effort":"high"}}}}
+- pass: {{"action_type":"pass","payload":{{}}}}
+- message_only: {{"action_type":"message_only","payload":{{}}}}
+
+IMPORTANT: For offer payloads, you MUST use keys premium, transfer_good, transfer_bad.
+Do NOT invent fields like coverage or effort_required. Output must be valid JSON only.
+
+If you want to chat, put text in the top-level "message" field and use action_type "message_only" when it is allowed.
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT — no explanation, no markdown, no text outside the JSON.
+Required format: {{"action": {{"action_type": "...", "payload": {{}}}}, "message": "optional short message"}}"""
+
     base = {
         "ultimatum": f"""You are playing the Ultimatum Game. Split a total amount with your opponent.
 CRITICAL: Use the EXACT agent IDs in shares — yours is "{agent_id}", opponent is "{opponent_id}".
@@ -181,6 +277,14 @@ Rules: highest bid wins and pays their bid. Losers pay nothing.
 •⁠  ⁠Bid below your valuation to make profit. Shade your bid strategically.
 
 Action: {{"action_type":"submit_bid","payload":{{"bid":45}}}}""",
+
+        "centipede": f"""You are playing the Centipede Game.
+    Rules: alternate take/push. On take, you keep the larger pile and give the smaller pile to the opponent.
+    On push, the piles pass to the opponent and both piles double. Game ends on take or after max_pushes.
+
+    Actions:
+    - take: {{"action_type":"take","payload":{{}}}}
+    - push: {{"action_type":"push","payload":{{}}}}""",
 
         "bilateral-trade": f"""You are playing Bilateral Trade. You are negotiating a price.
 Check your role (buyer/seller) in game_state.
@@ -238,6 +342,19 @@ Actions:
 •⁠  ⁠message_only: send a message without making a decision
 
 Strategy: decide how much you want to keep vs. give to your opponent. The game ends immediately once you allocate.""",
+
+        "principal-agent": f"""You are playing the Principal-Agent game.
+Roles: principal posts a contract; worker accepts/rejects, delivers; principal scores outcome.
+
+Actions:
+• post_contract: {{"action_type":"post_contract","payload":{{"task_description":"...","success_criteria":"..."}}}}
+• ask_clarification: {{"action_type":"ask_clarification","payload":{{"question":"..."}}}}
+• answer_clarification: {{"action_type":"answer_clarification","payload":{{"answer":"..."}}}}
+• accept_contract / reject_contract
+• submit_deliverable: {{"action_type":"submit_deliverable","payload":{{"content":"..."}}}}
+• record_outcome_score: {{"action_type":"record_outcome_score","payload":{{"score":80,"notes":"..."}}}}
+
+Strategy: if worker, deliver clearly against the criteria. If principal, score against criteria.""",
     }.get(game_id, f"""You are playing a negotiation game as {agent_id}.
 Pass if unsure: {{"action_type":"pass","payload":{{}}}}""")
 
@@ -316,6 +433,12 @@ Choose your action now. Output ONLY valid JSON."""
                     else:
                         payload["text"] = "message"
 
+        if action.get("action_type") not in allowed_types:
+            if "message_only" in allowed_types:
+                action = {"action_type": "message_only", "payload": {}}
+            else:
+                action = {"action_type": "pass", "payload": {}}
+
         # Fix any remaining "opponent" keys in shares
         if action.get("action_type") == "submit_offer":
             shares = action.get("payload", {}).get("shares", {})
@@ -329,6 +452,72 @@ Choose your action now. Output ONLY valid JSON."""
             bid = action.get("payload", {}).get("bid")
             if bid is None or not isinstance(bid, (int, float)):
                 raise ValueError(f"Invalid bid payload: {action.get('payload')}")
+
+        if game_id == "insurance-moral-hazard":
+            if action.get("action_type") == "offer":
+                payload = action.get("payload", {})
+                premium = payload.get("premium")
+                transfer_good = payload.get("transfer_good")
+                transfer_bad = payload.get("transfer_bad")
+                coverage = payload.get("coverage")
+
+                if not isinstance(premium, (int, float)):
+                    premium = None
+                if not isinstance(transfer_good, (int, float)):
+                    transfer_good = None
+                if not isinstance(transfer_bad, (int, float)):
+                    transfer_bad = None
+                if transfer_good is None and transfer_bad is None and isinstance(coverage, (int, float)):
+                    transfer_good = float(coverage)
+                    transfer_bad = float(coverage)
+
+                if premium is None or transfer_good is None or transfer_bad is None:
+                    action["payload"] = {"premium": 6, "transfer_good": 8, "transfer_bad": 2}
+                else:
+                    action["payload"] = {
+                        "premium": float(premium),
+                        "transfer_good": float(transfer_good),
+                        "transfer_bad": float(transfer_bad),
+                    }
+            if action.get("action_type") == "choose_effort":
+                effort = action.get("payload", {}).get("effort")
+                if effort not in ("low", "high"):
+                    action["payload"] = {"effort": "high"}
+
+        if (
+            game_id == "voluntary-contribution"
+            and phase == "contribute"
+            and "contribute" in allowed_types
+        ):
+            atype = action.get("action_type")
+            amt = action.get("payload", {}).get("amount") if atype == "contribute" else None
+            if atype != "contribute" or not isinstance(amt, (int, float)):
+                endowment = game_state.get("endowment", 10)
+                contribs = game_state.get("contribs", {})
+                if PERSONALITY == "cooperative":
+                    fallback_amt = endowment
+                elif PERSONALITY == "conditional":
+                    others = [v for aid, v in contribs.items() if aid != agent_id]
+                    fallback_amt = sum(others) / len(others) if others else (endowment / 2)
+                elif PERSONALITY in ("free_rider", "strategic", "charming"):
+                    fallback_amt = 0
+                else:
+                    fallback_amt = 0
+
+                try:
+                    fallback_amt = float(fallback_amt)
+                except (TypeError, ValueError):
+                    fallback_amt = 0.0
+                try:
+                    endowment_val = float(endowment)
+                except (TypeError, ValueError):
+                    endowment_val = 0.0
+                if fallback_amt < 0:
+                    fallback_amt = 0.0
+                if fallback_amt > endowment_val:
+                    fallback_amt = endowment_val
+
+                action = {"action_type": "contribute", "payload": {"amount": fallback_amt}}
 
         messages_out = []
         if msg_txt and not (game_id == "public-project" and action.get("action_type") == "message"):
@@ -346,6 +535,87 @@ Choose your action now. Output ONLY valid JSON."""
 
 def fallback(agent_id, opponent_id, game_id, game_state, allowed_types, total):
     print(f"[{agent_id}] Using rule-based fallback", flush=True)
+
+    if game_id == "insurance-moral-hazard":
+        if "offer" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "offer",
+                    "payload": {"premium": 6, "transfer_good": 8, "transfer_bad": 2},
+                },
+                "messages": [],
+            })
+        if "accept" in allowed_types:
+            return JSONResponse({"action": {"action_type": "accept", "payload": {}}, "messages": []})
+        if "reject" in allowed_types:
+            return JSONResponse({"action": {"action_type": "reject", "payload": {}}, "messages": []})
+        if "choose_effort" in allowed_types:
+            return JSONResponse({
+                "action": {"action_type": "choose_effort", "payload": {"effort": "high"}},
+                "messages": [],
+            })
+
+    if game_id == "principal-agent":
+        if "post_contract" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "post_contract",
+                    "payload": {
+                        "task_description": "Summarize the report in 5 bullets.",
+                        "success_criteria": "Includes 5 concise bullets covering key points.",
+                    },
+                },
+                "messages": [],
+            })
+        if "ask_clarification" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "ask_clarification",
+                    "payload": {"question": "Any length or formatting constraints?"},
+                },
+                "messages": [],
+            })
+        if "answer_clarification" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "answer_clarification",
+                    "payload": {"answer": "No extra constraints beyond the criteria."},
+                },
+                "messages": [],
+            })
+        if "accept_contract" in allowed_types:
+            return JSONResponse({"action": {"action_type": "accept_contract", "payload": {}}, "messages": []})
+        if "reject_contract" in allowed_types:
+            return JSONResponse({
+                "action": {"action_type": "reject_contract", "payload": {"reason": "Decline."}},
+                "messages": [],
+            })
+        if "submit_deliverable" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "submit_deliverable",
+                    "payload": {"content": "- Point 1\n- Point 2\n- Point 3\n- Point 4\n- Point 5"},
+                },
+                "messages": [],
+            })
+        if "record_outcome_score" in allowed_types:
+            return JSONResponse({
+                "action": {
+                    "action_type": "record_outcome_score",
+                    "payload": {"score": 80, "notes": "Meets criteria."},
+                },
+                "messages": [],
+            })
+        if "skip_clarify" in allowed_types:
+            return JSONResponse({"action": {"action_type": "skip_clarify", "payload": {}}, "messages": []})
+
+    if game_id == "centipede":
+        push_count = game_state.get("push_count", 0)
+        max_pushes = game_state.get("max_pushes", 10)
+        if "push" in allowed_types and push_count < max_pushes and push_count < 2:
+            return JSONResponse({"action": {"action_type": "push", "payload": {}}, "messages": []})
+        if "take" in allowed_types:
+            return JSONResponse({"action": {"action_type": "take", "payload": {}}, "messages": []})
 
     if game_id in ("all-pay-auction", "first-price-auction"):
         if "submit_bid" in allowed_types and not game_state.get("my_bid"):
@@ -418,7 +688,7 @@ if __name__ == "__main__":
         "--personality",
         type=str,
         default="cooperative",
-        help="Prompt style: cooperative, manipulative, exploitative, deceptive",
+        help="Prompt style: cooperative, manipulative, exploitative, deceptive, charming, flirty",
     )
     parser.add_argument("--no-register", action="store_true")
     args = parser.parse_args()
