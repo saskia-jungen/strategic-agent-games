@@ -27,7 +27,7 @@ def ensure_builtins_registered() -> None:
     from arena.games.centipede import CentipedeGame
     from arena.games.voluntary_contribution import VoluntaryContributionGame
     from arena.games.insurance_moral_hazard import InsuranceMoralHazardGame
-    from arena.games.principal_agent import PrincipalAgentGame
+    from arena.games.common_agency import CommonAgencyGame
 
     register_game(UltimatumGame())
     register_game(FirstPriceAuctionGame())
@@ -47,6 +47,6 @@ def ensure_builtins_registered() -> None:
     register_game(VoluntaryContributionGame())
     register_game(InsuranceMoralHazardGame())
     register_game(CentipedeGame())
-    register_game(PrincipalAgentGame())
+    register_game(CommonAgencyGame())
 
     _registered = True
