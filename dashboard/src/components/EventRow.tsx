@@ -23,6 +23,17 @@ export default function EventRow({ event }: { event: MatchEvent }) {
 
   if (event_type === 'action') {
     const ok = data.ok as boolean;
+    const payload = (data.payload as Record<string, unknown>) || {};
+    const redacted = Array.isArray(payload._redacted) ? (payload._redacted as string[]) : [];
+    const payloadEntries = Object.entries(payload).filter(([key]) => key !== '_redacted');
+    const prettyPayload = payloadEntries
+      .map(([key, value]) => {
+        if (redacted.includes(key)) return `${key}: [private]`;
+        if (typeof value === 'string') return `${key}: ${value}`;
+        if (typeof value === 'number' || typeof value === 'boolean') return `${key}: ${value}`;
+        return `${key}: ${JSON.stringify(value)}`;
+      })
+      .join(', ');
     return (
       <div className="flex gap-3 items-start">
         <Zap className={`w-4 h-4 mt-0.5 flex-shrink-0 ${ok ? 'text-success' : 'text-danger'}`} />
@@ -32,9 +43,9 @@ export default function EventRow({ event }: { event: MatchEvent }) {
           <span className={`text-xs font-mono ${ok ? 'text-success' : 'text-danger'}`}>
             {data.action_type as string}
           </span>
-          {data.payload && Object.keys(data.payload as object).length > 0 ? (
-            <span className="text-[11px] text-text-muted ml-2 font-mono break-all">
-              {JSON.stringify(data.payload)}
+          {payloadEntries.length > 0 ? (
+            <span className="text-[11px] text-text-muted ml-2 font-mono break-words">
+              {prettyPayload}
             </span>
           ) : null}
           {!ok && data.error_detail ? (
@@ -46,17 +57,32 @@ export default function EventRow({ event }: { event: MatchEvent }) {
   }
 
   if (event_type === 'match_end') {
+    const outcome = data.outcome as Record<string, unknown> | undefined;
+    const stateRealized = typeof outcome?.state_realized === 'string' ? outcome.state_realized : null;
+    const transfer = typeof outcome?.transfer === 'number' ? outcome.transfer : null;
+    const premium = typeof outcome?.premium === 'number' ? outcome.premium : null;
+    const effort = typeof outcome?.effort === 'string' ? outcome.effort : null;
+    const detailParts: string[] = [];
+    if (stateRealized) detailParts.push(`state: ${stateRealized}`);
+    if (effort) detailParts.push(`effort: ${effort}`);
+    if (transfer !== null) detailParts.push(`transfer: ${transfer}`);
+    if (premium !== null) detailParts.push(`premium: ${premium}`);
+    const detail = detailParts.join(' | ');
+
     return (
-      <div className="flex gap-3 items-center py-2 border-t border-border mt-2">
+      <div className="flex gap-3 items-start py-2 border-t border-border mt-2">
         {data.status === 'finished' ? (
           <CheckCircle className="w-4 h-4 text-success" />
         ) : (
           <XCircle className="w-4 h-4 text-danger" />
         )}
-        <span className="text-sm font-medium">
-          Match {data.status as string}
-          {data.trigger ? <span className="text-text-muted ml-2">({String(data.trigger)})</span> : null}
-        </span>
+        <div>
+          <span className="text-sm font-medium">
+            Match {data.status as string}
+            {data.trigger ? <span className="text-text-muted ml-2">({String(data.trigger)})</span> : null}
+          </span>
+          {detail ? <div className="text-xs text-text-muted mt-0.5">{detail}</div> : null}
+        </div>
       </div>
     );
   }

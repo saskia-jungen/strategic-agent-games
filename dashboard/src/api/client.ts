@@ -27,6 +27,7 @@ export interface GameInfo {
   game_id: string;
   description: string;
   min_agents: number;
+  max_agents: number | null;
 }
 
 export interface MatchEvent {

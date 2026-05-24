@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument(
         "--games", nargs="+",
-        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "all-pay-auction", "hold-up", "war-of-attrition", "dutch-auction", "english-auction", "sequential-investment", "common-agency"],
+        default=["ultimatum", "bilateral-trade", "first-price-auction", "provision-point", "dictator", "public-project", "trust", "voluntary-contribution", "insurance-moral-hazard", "principal-agent", "centipede", "cournot", "all-pay-auction", "hold-up", "war-of-attrition", "dutch-auction", "english-auction", "sequential-investment"],
     )
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--max-turns", type=int, default=10)
@@ -51,13 +51,20 @@ def main() -> None:
         "bilateral-trade": "arena.games.bilateral_trade:BilateralTradeGame",
         "first-price-auction": "arena.games.first_price_auction:FirstPriceAuctionGame",
         "provision-point": "arena.games.provision_point:ProvisionPointGame",
+        "dictator": "arena.games.dictator:DictatorGame",
+        "public-project": "arena.games.public_project:PublicProjectGame",
+        "trust": "arena.games.trust:TrustGame",
+        "cournot": "arena.games.cournot:CournotGame",
         "all-pay-auction": "arena.games.all_pay_auction:AllPayAuctionGame",
         "hold-up": "arena.games.hold_up:HoldUpGame",
         "war-of-attrition": "arena.games.war_of_attrition:WarOfAttritionGame",
         "dutch-auction": "arena.games.dutch_auction:DutchAuctionGame",
         "english-auction": "arena.games.english_auction:EnglishAuctionGame",
         "sequential-investment": "arena.games.sequential_investment:SequentialInvestmentGame",
-        "common-agency": "arena.games.common_agency:CommonAgencyGame"
+        "voluntary-contribution": "arena.games.voluntary_contribution:VoluntaryContributionGame",
+        "insurance-moral-hazard": "arena.games.insurance_moral_hazard:InsuranceMoralHazardGame",
+        "principal-agent": "arena.games.principal_agent:PrincipalAgentGame",
+        "centipede": "arena.games.centipede:CentipedeGame",
     }
     for gid in args.games:
         if gid in game_factories:
